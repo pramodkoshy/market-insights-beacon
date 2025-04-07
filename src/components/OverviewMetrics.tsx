@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Activity, TrendingUp, Users, DollarSign } from 'lucide-react';
-import { BarChart4 } from 'lucide-react';
+import { Activity, TrendingUp, Users, DollarSign, BarChart4 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AreaChart, Bar, BarChart, Cell, Line, LineChart, Pie, PieChart } from 'recharts';
 
