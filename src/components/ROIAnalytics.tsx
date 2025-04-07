@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { 
   DollarSign, 
-  TrendingUp, 
-  BarChart, 
+  TrendingUp,
+  BarChart4, 
   PieChart as PieChartIcon, 
   ChevronDown, 
   Filter 
@@ -156,7 +156,7 @@ export function ROIAnalytics() {
             <CardTitle className="text-sm font-medium">
               Highest ROI
             </CardTitle>
-            <BarChart className="h-4 w-4 text-muted-foreground" />
+            <BarChart4 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">4.8x</div>
@@ -183,7 +183,7 @@ export function ROIAnalytics() {
                   dataKey="roi" 
                   fill="#3b82f6" 
                   radius={[4, 4, 0, 0]}
-                  label={{ position: 'top', formatter: (val) => `${val}x` }}
+                  label={{ position: 'top', formatter: (val: any) => `${val}x` }}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -260,7 +260,7 @@ export function ROIAnalytics() {
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
-                  label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({name, percent}: {name: string, percent: number}) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
                   {roiDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

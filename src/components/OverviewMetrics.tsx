@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { Activity, TrendingUp, Users, DollarSign, BarChart } from 'lucide-react';
+import { Activity, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { BarChart4 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Bar, BarChart, Line, LineChart, Pie, PieChart } from 'recharts';
+import { AreaChart, Bar, BarChart, Cell, Line, LineChart, Pie, PieChart } from 'recharts';
 
 export function OverviewMetrics() {
   // Sample data for the overview metrics
@@ -67,6 +68,9 @@ export function OverviewMetrics() {
     { name: 'Display', performance: 65 },
     { name: 'Video', performance: 72 },
   ];
+
+  // Array of colors for the pie chart
+  const colors = ["#3b82f6", "#14b8a6", "#a855f7", "#f97316"];
 
   return (
     <div className="space-y-4">
@@ -135,10 +139,9 @@ export function OverviewMetrics() {
                 fill="#8884d8"
                 label
               >
-                {campaignTypeData.map((entry, index) => {
-                  const colors = ["#3b82f6", "#14b8a6", "#a855f7", "#f97316"];
-                  return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
-                })}
+                {campaignTypeData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
               </Pie>
             </PieChart>
           </CardContent>
@@ -151,14 +154,16 @@ export function OverviewMetrics() {
           <CardDescription>Performance by marketing channel</CardDescription>
         </CardHeader>
         <CardContent>
-          <BarChart
-            width={800}
-            height={300}
-            data={channelPerformanceData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          >
-            <Bar dataKey="performance" fill="#14b8a6" />
-          </BarChart>
+          <div className="w-full overflow-auto">
+            <BarChart
+              width={800}
+              height={300}
+              data={channelPerformanceData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <Bar dataKey="performance" fill="#14b8a6" />
+            </BarChart>
+          </div>
         </CardContent>
       </Card>
     </div>

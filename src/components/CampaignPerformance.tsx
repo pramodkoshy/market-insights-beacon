@@ -6,8 +6,9 @@ import {
   RefreshCw, 
   TrendingUp, 
   TrendingDown, 
-  BarChart, 
-  PieChart as PieChartIcon
+  BarChart4, 
+  PieChart as PieChartIcon,
+  DollarSign
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -187,7 +188,7 @@ export function CampaignPerformance() {
                 <CardTitle className="text-sm font-medium">
                   Active Campaigns
                 </CardTitle>
-                <BarChart className="h-4 w-4 text-muted-foreground" />
+                <BarChart4 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">18</div>
