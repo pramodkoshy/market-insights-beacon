@@ -1,7 +1,27 @@
 
-import { RunnableSequence } from "langchain/runnables";
-import { createGraph, StateGraph } from "@langchain/langgraph";
 import { simulations } from "./AgentSimulations";
+
+// Define a simple runnable sequence without relying on external packages
+class SimpleRunnableSequence {
+  steps: any[];
+  
+  constructor(steps: any[]) {
+    this.steps = steps;
+  }
+  
+  static from(steps: any[]) {
+    return new SimpleRunnableSequence(steps);
+  }
+  
+  async invoke(input: any) {
+    let currentInput = input;
+    for (const step of this.steps) {
+      const stepFunction = Object.values(step)[0] as (input: any) => Promise<any>;
+      currentInput = await stepFunction(currentInput);
+    }
+    return currentInput;
+  }
+}
 
 interface AgentTask {
   id: string;
@@ -64,7 +84,7 @@ export class AgentSystem {
     // For demonstration, we'll set up simple sequences
     this.agents.forEach((agent, agentType) => {
       // Create a simple graph that just runs the agent
-      const graph = RunnableSequence.from([
+      const graph = SimpleRunnableSequence.from([
         {
           runAgent: async (input: any) => {
             return await agent.run(input);
