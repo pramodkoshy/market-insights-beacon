@@ -2,13 +2,31 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAgents } from '../AgentContext';
 
-export function useAgentData(agentType: string, defaultParams: any = {}) {
+interface AgentConfigHistory {
+  timestamp: string;
+  params: Record<string, any>;
+  configuredBy: string;
+}
+
+interface AgentDataResult {
+  data: any;
+  loading: boolean;
+  error: string | null;
+  refreshData: (params?: Record<string, any>) => Promise<void>;
+  updateParams: (newParams: Record<string, any>) => void;
+  currentParams: Record<string, any>;
+  configHistory: AgentConfigHistory[];
+  rerunWithConfig: (configIndex: number) => void;
+  lastUpdate: string | null;
+}
+
+export function useAgentData(agentType: string, defaultParams: Record<string, any> = {}): AgentDataResult {
   const { isInitialized, latestResults, triggerTask, isProcessing, lastUpdate } = useAgents();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentParams, setCurrentParams] = useState(defaultParams);
-  const [configHistory, setConfigHistory] = useState<any[]>([]);
+  const [currentParams, setCurrentParams] = useState<Record<string, any>>(defaultParams);
+  const [configHistory, setConfigHistory] = useState<AgentConfigHistory[]>([]);
 
   useEffect(() => {
     if (isInitialized && latestResults && latestResults[agentType]) {
@@ -19,7 +37,7 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
       
       // Add the configuration to history if it exists in metadata
       if (latestResults[agentType].metadata?.generatedWith) {
-        const newConfig = {
+        const newConfig: AgentConfigHistory = {
           timestamp: latestResults[agentType].metadata.timestamp || new Date().toISOString(),
           params: latestResults[agentType].metadata.generatedWith,
           configuredBy: latestResults[agentType].metadata.configuredBy || 'system'
@@ -44,7 +62,7 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
     }
   }, [isInitialized, latestResults, agentType, defaultParams]);
 
-  const refreshData = useCallback(async (params?: any) => {
+  const refreshData = useCallback(async (params?: Record<string, any>) => {
     setLoading(true);
     setError(null);
     
@@ -64,7 +82,7 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
         setData(result[agentType]);
         
         // Add to config history
-        const newConfig = {
+        const newConfig: AgentConfigHistory = {
           timestamp: new Date().toISOString(),
           params: mergedParams,
           configuredBy: 'user'
@@ -90,7 +108,7 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
     }
   }, [agentType, triggerTask, currentParams]);
 
-  const updateParams = useCallback((newParams: any) => {
+  const updateParams = useCallback((newParams: Record<string, any>) => {
     console.log(`Updating params for ${agentType}:`, newParams);
     refreshData(newParams);
   }, [agentType, refreshData]);

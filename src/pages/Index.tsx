@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   BarChart, 
@@ -46,6 +45,46 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 
+interface EntityBase {
+  id: string;
+  name: string;
+  type: "campaign" | "customer" | "report";
+  createdAt: string;
+  updatedAt?: string;
+  agentConfig: AgentConfig;
+}
+
+interface AgentConfig {
+  industryFocus?: string;
+  timeframe?: string;
+  segment?: string;
+  reportName?: string;
+  campaignName?: string;
+  customerId?: string;
+  campaignId?: string;
+  reportId?: string;
+  channels?: string[];
+  audience?: string[];
+  objectives?: string[];
+  budget?: string;
+  startDate?: string;
+  endDate?: string;
+  metrics?: string[];
+  region?: string;
+  country?: string;
+  compareWithPrevious?: boolean;
+  competitors?: string[];
+  includeMarketShare?: boolean;
+  customerLifetime?: string;
+  customerAcquisitionCost?: string;
+  engagementLevel?: string;
+  frequency?: string;
+  platform?: string;
+  marketVertical?: string;
+  emergingTrends?: boolean;
+  focusAreas?: string[];
+}
+
 const entitySchema = z.object({
   name: z.string().min(1, {
     message: "Name is required",
@@ -62,26 +101,52 @@ const agentConfigSchema = z.object({
   customerId: z.string().optional(),
   campaignId: z.string().optional(),
   reportId: z.string().optional(),
+  channels: z.array(z.string()).optional(),
+  audience: z.array(z.string()).optional(),
+  objectives: z.array(z.string()).optional(),
+  budget: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  metrics: z.array(z.string()).optional(),
+  region: z.string().optional(),
+  country: z.string().optional(),
+  compareWithPrevious: z.boolean().optional(),
+  competitors: z.array(z.string()).optional(),
+  includeMarketShare: z.boolean().optional(),
+  customerLifetime: z.string().optional(),
+  customerAcquisitionCost: z.string().optional(),
+  engagementLevel: z.string().optional(),
+  frequency: z.string().optional(),
+  platform: z.string().optional(),
+  marketVertical: z.string().optional(),
+  emergingTrends: z.boolean().optional(),
+  focusAreas: z.array(z.string()).optional(),
 });
 
 const formSchema = entitySchema.merge(z.object({
   agentConfig: agentConfigSchema
 }));
 
+interface EntitiesState {
+  campaigns: EntityBase[];
+  customers: EntityBase[];
+  reports: EntityBase[];
+}
+
 const Index = () => {
   const { toast: uiToast } = useToast();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [currentEntity, setCurrentEntity] = useState(null);
-  const [entities, setEntities] = useState({
+  const [currentEntity, setCurrentEntity] = useState<EntityBase | null>(null);
+  const [entities, setEntities] = useState<EntitiesState>({
     campaigns: [],
     customers: [],
     reports: []
   });
   const { isProcessing, runAllAgents, triggerTask } = useAgents();
 
-  const form = useForm({
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -95,6 +160,24 @@ const Index = () => {
         customerId: "",
         campaignId: "",
         reportId: "",
+        channels: [],
+        audience: [],
+        objectives: [],
+        budget: "",
+        region: "",
+        country: "",
+        compareWithPrevious: false,
+        metrics: [],
+        competitors: [],
+        includeMarketShare: false,
+        customerLifetime: "",
+        customerAcquisitionCost: "",
+        engagementLevel: "medium",
+        frequency: "weekly",
+        platform: "",
+        marketVertical: "",
+        emergingTrends: true,
+        focusAreas: [],
       }
     },
   });
@@ -112,18 +195,34 @@ const Index = () => {
         customerId: "",
         campaignId: "",
         reportId: "",
+        channels: [],
+        audience: [],
+        objectives: [],
+        budget: "",
+        region: "",
+        country: "",
+        compareWithPrevious: false,
+        metrics: [],
+        competitors: [],
+        includeMarketShare: false,
+        customerLifetime: "",
+        customerAcquisitionCost: "",
+        engagementLevel: "medium",
+        frequency: "weekly",
+        platform: "",
+        marketVertical: "",
+        emergingTrends: true,
+        focusAreas: [],
       }
     });
   };
 
-  const openEditDialog = (entity) => {
+  const openEditDialog = (entity: EntityBase) => {
     setEditMode(true);
     setCurrentEntity(entity);
     
-    // Set form values based on the selected entity
-    const agentConfig = {};
+    const agentConfig: AgentConfig = {};
     
-    // Set specific agent config fields based on entity type
     if (entity.type === 'campaign') {
       agentConfig.campaignName = entity.name;
       agentConfig.campaignId = entity.id;
@@ -133,13 +232,12 @@ const Index = () => {
     } else if (entity.type === 'report') {
       agentConfig.reportName = entity.name;
       agentConfig.reportId = entity.id;
-      agentConfig.industryFocus = entity.industry || 'technology';
+      agentConfig.industryFocus = entity.agentConfig?.industryFocus || 'technology';
     }
     
-    // Fill any other saved config values if they exist
     if (entity.agentConfig) {
       Object.keys(entity.agentConfig).forEach(key => {
-        agentConfig[key] = entity.agentConfig[key];
+        agentConfig[key as keyof AgentConfig] = entity.agentConfig[key as keyof AgentConfig];
       });
     }
     
@@ -167,15 +265,14 @@ const Index = () => {
     { label: 'Reports', icon: FileText, path: "/reports", active: false },
   ];
 
-  const handleNavigation = (path) => {
+  const handleNavigation = (path: string) => {
     navigate(path);
     toast(`Navigated to ${path}`);
   };
 
-  const onSubmit = (values) => {
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (editMode && currentEntity) {
-      // Update existing entity
-      const updatedEntity = {
+      const updatedEntity: EntityBase = {
         ...currentEntity,
         name: values.name,
         type: values.type,
@@ -183,7 +280,6 @@ const Index = () => {
         updatedAt: new Date().toISOString()
       };
       
-      // Update the appropriate entity list
       setEntities(prev => {
         if (values.type === 'campaign') {
           const campaigns = prev.campaigns.map(e => e.id === currentEntity.id ? updatedEntity : e);
@@ -200,8 +296,7 @@ const Index = () => {
       
       toast.success(`Updated ${values.type}: ${values.name}`);
     } else {
-      // Create a new entity
-      const newEntity = {
+      const newEntity: EntityBase = {
         id: Date.now().toString(),
         name: values.name,
         type: values.type,
@@ -209,7 +304,6 @@ const Index = () => {
         createdAt: new Date().toISOString()
       };
       
-      // Update the appropriate entity list
       setEntities(prev => {
         if (values.type === 'campaign') {
           return { ...prev, campaigns: [...prev.campaigns, newEntity] };
@@ -224,10 +318,8 @@ const Index = () => {
       toast.success(`Created new ${values.type}: ${values.name}`);
     }
     
-    form.reset();
     setDialogOpen(false);
 
-    // Trigger relevant agent based on entity type with the agent config
     const agentType = values.type === 'campaign' ? 'campaignPerformance' : 
                       values.type === 'customer' ? 'customerSegmentation' : 
                       'marketTrends';
@@ -235,7 +327,7 @@ const Index = () => {
     triggerTask(agentType, values.agentConfig);
   };
   
-  const getAgentConfigFields = (type) => {
+  const getAgentConfigFields = (type: string) => {
     if (type === 'campaign') {
       return (
         <>
@@ -274,6 +366,113 @@ const Index = () => {
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="agentConfig.channels"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Channels</FormLabel>
+                <FormControl>
+                  <div className="flex flex-wrap gap-2">
+                    {['Social', 'Email', 'Search', 'Display', 'Video'].map(channel => (
+                      <div key={channel} className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          id={`channel-${channel}`}
+                          checked={field.value?.includes(channel)}
+                          onChange={(e) => {
+                            let updatedChannels = [...(field.value || [])];
+                            if (e.target.checked) {
+                              updatedChannels.push(channel);
+                            } else {
+                              updatedChannels = updatedChannels.filter(c => c !== channel);
+                            }
+                            field.onChange(updatedChannels);
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor={`channel-${channel}`} className="text-sm">{channel}</label>
+                      </div>
+                    ))}
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.budget"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Budget</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter budget amount" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.startDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Start Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.endDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.objectives"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Objectives</FormLabel>
+                <FormControl>
+                  <div className="flex flex-wrap gap-2">
+                    {['Awareness', 'Engagement', 'Conversion', 'Retention', 'Advocacy'].map(objective => (
+                      <div key={objective} className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          id={`objective-${objective}`}
+                          checked={field.value?.includes(objective)}
+                          onChange={(e) => {
+                            let updatedObjectives = [...(field.value || [])];
+                            if (e.target.checked) {
+                              updatedObjectives.push(objective);
+                            } else {
+                              updatedObjectives = updatedObjectives.filter(o => o !== objective);
+                            }
+                            field.onChange(updatedObjectives);
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor={`objective-${objective}`} className="text-sm">{objective}</label>
+                      </div>
+                    ))}
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </>
       );
     } else if (type === 'customer') {
@@ -294,6 +493,97 @@ const Index = () => {
                     <option value="mid-tier">Mid Tier</option>
                     <option value="low-engagement">Low Engagement</option>
                     <option value="new">New Customer</option>
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.customerLifetime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Customer Lifetime Value</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. $1000" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.customerAcquisitionCost"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Customer Acquisition Cost</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. $200" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.engagementLevel"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Engagement Level</FormLabel>
+                <FormControl>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    {...field}
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.frequency"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Purchase Frequency</FormLabel>
+                <FormControl>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    {...field}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.region"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Region</FormLabel>
+                <FormControl>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    {...field}
+                  >
+                    <option value="north-america">North America</option>
+                    <option value="europe">Europe</option>
+                    <option value="asia-pacific">Asia Pacific</option>
+                    <option value="latin-america">Latin America</option>
+                    <option value="middle-east">Middle East</option>
+                    <option value="africa">Africa</option>
                   </select>
                 </FormControl>
                 <FormMessage />
@@ -347,6 +637,117 @@ const Index = () => {
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="agentConfig.marketVertical"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Market Vertical</FormLabel>
+                <FormControl>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    {...field}
+                  >
+                    <option value="b2b">B2B</option>
+                    <option value="b2c">B2C</option>
+                    <option value="d2c">D2C</option>
+                    <option value="saas">SaaS</option>
+                    <option value="ecommerce">E-Commerce</option>
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.compareWithPrevious"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <input
+                    type="checkbox"
+                    checked={field.value}
+                    onChange={field.onChange}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Compare with Previous Period</FormLabel>
+                  <FormDescription>
+                    Show comparison with the previous time period
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.includeMarketShare"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <input
+                    type="checkbox"
+                    checked={field.value}
+                    onChange={field.onChange}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Include Market Share Analysis</FormLabel>
+                  <FormDescription>
+                    Add market share data to the report
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.emergingTrends"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <input
+                    type="checkbox"
+                    checked={field.value}
+                    onChange={field.onChange}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Analyze Emerging Trends</FormLabel>
+                  <FormDescription>
+                    Include analysis of emerging market trends
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="agentConfig.competitors"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Competitors to Track</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter competitors (comma separated)"
+                    value={field.value?.join(', ') || ''}
+                    onChange={(e) => {
+                      const competitors = e.target.value.split(',').map(c => c.trim()).filter(Boolean);
+                      field.onChange(competitors);
+                    }}
+                  />
+                </FormControl>
+                <FormDescription>
+                  List competitors you want to include in the analysis
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </>
       );
     }
@@ -354,7 +755,6 @@ const Index = () => {
     return null;
   };
 
-  // Watch for type changes to update form fields
   const entityType = form.watch("type");
 
   return (
@@ -457,7 +857,7 @@ const Index = () => {
                                   />
                                 </TabsContent>
                                 
-                                <TabsContent value="config" className="space-y-4 pt-4">
+                                <TabsContent value="config" className="space-y-4 pt-4 max-h-[60vh] overflow-y-auto">
                                   {getAgentConfigFields(entityType)}
                                 </TabsContent>
                               </Tabs>
@@ -606,7 +1006,6 @@ const Index = () => {
             </SidebarFooter>
           </Sidebar>
           
-          {/* Main Content */}
           <div className="flex-1 overflow-auto">
             <Dashboard />
           </div>
