@@ -8,6 +8,7 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentParams, setCurrentParams] = useState(defaultParams);
+  const [configHistory, setConfigHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (isInitialized && latestResults && latestResults[agentType]) {
@@ -15,6 +16,27 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
       setData(latestResults[agentType]);
       setLoading(false);
       setError(null);
+      
+      // Add the configuration to history if it exists in metadata
+      if (latestResults[agentType].metadata?.generatedWith) {
+        const newConfig = {
+          timestamp: latestResults[agentType].metadata.timestamp || new Date().toISOString(),
+          params: latestResults[agentType].metadata.generatedWith,
+          configuredBy: latestResults[agentType].metadata.configuredBy || 'system'
+        };
+        
+        setConfigHistory(prev => {
+          // Check if this config already exists
+          const exists = prev.some(config => 
+            JSON.stringify(config.params) === JSON.stringify(newConfig.params)
+          );
+          
+          if (!exists) {
+            return [...prev, newConfig].slice(-5); // Keep last 5 configs
+          }
+          return prev;
+        });
+      }
     } else if (isInitialized) {
       // If initialized but no data for this agent type yet, trigger a task
       console.log(`No data for ${agentType} yet, triggering initial data load`);
@@ -40,6 +62,25 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
       
       if (result && result[agentType]) {
         setData(result[agentType]);
+        
+        // Add to config history
+        const newConfig = {
+          timestamp: new Date().toISOString(),
+          params: mergedParams,
+          configuredBy: 'user'
+        };
+        
+        setConfigHistory(prev => {
+          // Check if this config already exists
+          const exists = prev.some(config => 
+            JSON.stringify(config.params) === JSON.stringify(newConfig.params)
+          );
+          
+          if (!exists) {
+            return [...prev, newConfig].slice(-5); // Keep last 5 configs
+          }
+          return prev;
+        });
       }
     } catch (err) {
       console.error(`Error refreshing data for ${agentType}:`, err);
@@ -54,6 +95,13 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
     refreshData(newParams);
   }, [agentType, refreshData]);
 
+  const rerunWithConfig = useCallback((configIndex: number) => {
+    if (configHistory[configIndex]) {
+      console.log(`Rerunning ${agentType} with historical config:`, configHistory[configIndex].params);
+      refreshData(configHistory[configIndex].params);
+    }
+  }, [configHistory, refreshData, agentType]);
+
   return {
     data,
     loading: loading || (isProcessing && !data),
@@ -61,6 +109,8 @@ export function useAgentData(agentType: string, defaultParams: any = {}) {
     refreshData,
     updateParams,
     currentParams,
+    configHistory,
+    rerunWithConfig,
     lastUpdate,
   };
 }

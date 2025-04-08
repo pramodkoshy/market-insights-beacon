@@ -87,55 +87,123 @@ export class AgentSystem {
             const customData = JSON.parse(JSON.stringify(defaultData));
             
             // Apply custom modifications based on agent type and parameters
-            if (type === "marketTrends" && params.industry) {
-              customData.industryFocus = params.industry;
-              customData.title = `Market Trends: ${params.industry} Industry`;
+            if (type === "marketTrends") {
+              if (params.industryFocus) {
+                customData.industryFocus = params.industryFocus;
+                customData.title = `Market Trends: ${params.industryFocus} Industry`;
+                
+                // Update data points to reflect industry focus
+                if (customData.data && customData.data.marketShare) {
+                  customData.data.marketShare.title = `${params.industryFocus} Market Share`;
+                }
+                
+                if (customData.data && customData.data.trendAnalysis) {
+                  customData.data.trendAnalysis.title = `${params.industryFocus} Industry Trends`;
+                }
+              }
+              
+              if (params.timeframe) {
+                customData.timeframe = params.timeframe;
+                customData.title = customData.title + ` (${params.timeframe})`;
+              }
               
               if (params.reportName) {
                 customData.title = `Report: ${params.reportName}`;
                 customData.metadata = {
+                  ...(customData.metadata || {}),
                   reportId: params.reportId,
                   generatedFor: params.reportName
                 };
               }
             }
             
-            if (type === "customerSegmentation" && params.segment) {
-              customData.segmentName = params.segment;
-              customData.title = `Customer Insights: ${params.segment} Segment`;
+            if (type === "customerSegmentation") {
+              if (params.segment) {
+                customData.segmentName = params.segment;
+                customData.title = `Customer Insights: ${params.segment} Segment`;
+                
+                // Update data points to reflect segment
+                if (customData.data && customData.data.demographics) {
+                  customData.data.demographics.title = `${params.segment} Demographics`;
+                }
+                
+                if (customData.data && customData.data.behaviouralInsights) {
+                  customData.data.behaviouralInsights.title = `${params.segment} Behavioral Insights`;
+                }
+              }
               
               if (params.customerName) {
                 customData.title = `Customer: ${params.customerName}`;
                 customData.metadata = {
+                  ...(customData.metadata || {}),
                   customerId: params.customerId,
                   customerName: params.customerName
                 };
               }
             }
             
-            if (type === "campaignPerformance" && params.campaignId) {
-              customData.campaignId = params.campaignId;
-              customData.title = `Campaign Performance`;
+            if (type === "campaignPerformance") {
+              if (params.timeframe) {
+                customData.timeframe = params.timeframe;
+                customData.title = `Campaign Performance (${params.timeframe})`;
+                
+                // Adjust date ranges in the visualization based on timeframe
+                if (customData.data && customData.data.performanceMetrics) {
+                  customData.data.performanceMetrics.timeframe = params.timeframe;
+                }
+              }
               
-              if (params.campaignName) {
-                customData.title = `Campaign: ${params.campaignName}`;
-                customData.metadata = {
-                  campaignId: params.campaignId,
-                  campaignName: params.campaignName
-                };
+              if (params.campaignId) {
+                customData.campaignId = params.campaignId;
+                
+                if (params.campaignName) {
+                  customData.title = `Campaign: ${params.campaignName}`;
+                  customData.metadata = {
+                    ...(customData.metadata || {}),
+                    campaignId: params.campaignId,
+                    campaignName: params.campaignName
+                  };
+                  
+                  // Update data points to reflect campaign name
+                  if (customData.data && customData.data.performanceMetrics) {
+                    customData.data.performanceMetrics.title = `${params.campaignName} Metrics`;
+                  }
+                  
+                  if (customData.data && customData.data.channelBreakdown) {
+                    customData.data.channelBreakdown.title = `${params.campaignName} Channel Performance`;
+                  }
+                }
               }
             }
             
-            if (type === "roiAnalysis" && params.timeframe) {
-              customData.timeframe = params.timeframe;
-              customData.title = `ROI Analysis - ${params.timeframe}`;
+            if (type === "roiAnalysis") {
+              if (params.timeframe) {
+                customData.timeframe = params.timeframe;
+                customData.title = `ROI Analysis - ${params.timeframe}`;
+                
+                // Update time periods in ROI calculations
+                if (customData.data && customData.data.roiTrend) {
+                  customData.data.roiTrend.period = params.timeframe;
+                }
+              }
+              
+              if (params.campaignId && params.campaignName) {
+                customData.title = `ROI Analysis: ${params.campaignName}`;
+                customData.campaignFocus = params.campaignName;
+                
+                // Update data to focus on specific campaign
+                if (customData.data && customData.data.investmentBreakdown) {
+                  customData.data.investmentBreakdown.title = `${params.campaignName} Investment Breakdown`;
+                }
+              }
             }
             
             // Add metadata about parameters used
             customData.metadata = {
-              ...customData.metadata,
+              ...(customData.metadata || {}),
               generatedWith: params,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              configuredBy: "user"
             };
             
             return customData;
@@ -155,6 +223,13 @@ export class AgentSystem {
     this.agents.forEach((agent, agentType) => {
       // Create a simple graph that just runs the agent
       const graph = SimpleRunnableSequence.from([
+        {
+          validateInput: async (input: any) => {
+            console.log(`Graph for ${agentType} validating input:`, input);
+            // In a real system, we would validate the input parameters here
+            return input;
+          }
+        },
         {
           runAgent: async (input: any) => {
             console.log(`Graph for ${agentType} running agent with input:`, input);
@@ -215,7 +290,7 @@ export class AgentSystem {
     this.updateCallback = callback;
     
     console.log("Starting background tasks");
-    // Run background tasks every few minutes
+    // Run background tasks every few minutes (reduced for demo purposes)
     this.backgroundInterval = setInterval(async () => {
       if (!this.isInitialized) return;
       
@@ -227,7 +302,8 @@ export class AgentSystem {
         console.log(`Running background task for agent ${randomType}`);
         const result = await this.runTask(randomType, {
           background: true,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          automated: true
         });
         
         if (this.updateCallback) {
