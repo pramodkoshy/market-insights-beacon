@@ -5,11 +5,10 @@ import {
   LayoutDashboard, 
   Users, 
   TrendingUp, 
-  FileText, 
+  FileText,
   Settings, 
-  HelpCircle, 
-  Menu, 
-  X 
+  HelpCircle,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,87 +17,167 @@ import Dashboard from '@/components/Dashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AgentProvider } from '@/agents/AgentContext';
 import { AgentStatusIndicator } from '@/components/AgentStatusIndicator';
+import { 
+  SidebarProvider, 
+  Sidebar, 
+  SidebarContent, 
+  SidebarHeader, 
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarTrigger
+} from '@/components/ui/sidebar';
+import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const Index = () => {
-  const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = React.useState(!isMobile);
-
-  React.useEffect(() => {
-    setSidebarOpen(!isMobile);
-  }, [isMobile]);
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [newEntityName, setNewEntityName] = React.useState("");
+  const [newEntityType, setNewEntityType] = React.useState("campaign");
+  const [dialogOpen, setDialogOpen] = React.useState(false);
 
   const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, active: true },
-    { label: 'Campaigns', icon: BarChart, active: false },
-    { label: 'Customers', icon: Users, active: false },
-    { label: 'ROI Analysis', icon: TrendingUp, active: false },
-    { label: 'Reports', icon: FileText, active: false },
+    { label: 'Dashboard', icon: LayoutDashboard, path: "/", active: true },
+    { label: 'Campaigns', icon: BarChart, path: "/campaigns", active: false },
+    { label: 'Customers', icon: Users, path: "/customers", active: false },
+    { label: 'ROI Analysis', icon: TrendingUp, path: "/roi", active: false },
+    { label: 'Reports', icon: FileText, path: "/reports", active: false },
   ];
+
+  const handleNavigation = (path) => {
+    if (path !== "/") {
+      toast({
+        title: "Navigation",
+        description: `This would navigate to ${path}`,
+      });
+    }
+  };
+
+  const handleCreateEntity = () => {
+    if (!newEntityName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a name for the new entity",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    toast({
+      title: "Success",
+      description: `Created new ${newEntityType}: ${newEntityName}`,
+    });
+    
+    setNewEntityName("");
+    setDialogOpen(false);
+  };
 
   return (
     <AgentProvider>
-      <div className="min-h-screen flex bg-background">
-        {/* Sidebar */}
-        <div 
-          className={`bg-sidebar fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-300 transform ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } md:relative md:translate-x-0`}
-        >
-          <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center space-x-2">
+      <SidebarProvider defaultOpen={true}>
+        <div className="min-h-screen flex w-full bg-background">
+          <Sidebar>
+            <SidebarHeader>
+              <div className="flex items-center space-x-2 px-4 pt-2">
                 <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
                   <BarChart className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <span className="text-xl font-bold text-sidebar-foreground">MarketInsights</span>
               </div>
-              {isMobile && (
-                <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-sidebar-foreground">
-                  <X className="h-5 w-5" />
-                </Button>
-              )}
-            </div>
+              <SidebarTrigger className="absolute right-2 top-2 md:hidden" />
+            </SidebarHeader>
             
-            <Separator className="bg-sidebar-border" />
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {navItems.map((item) => (
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton 
+                          isActive={item.active}
+                          tooltip={item.label}
+                          onClick={() => handleNavigation(item.path)}
+                        >
+                          <item.icon className="mr-2 h-5 w-5" />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupLabel>Actions</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogTrigger asChild>
+                          <SidebarMenuButton>
+                            <Plus className="mr-2 h-5 w-5" />
+                            <span>Create New</span>
+                          </SidebarMenuButton>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Create New Entity</DialogTitle>
+                            <DialogDescription>
+                              Add a new entity to your marketing dashboard.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="name" className="text-right">
+                                Name
+                              </Label>
+                              <Input 
+                                id="name" 
+                                value={newEntityName}
+                                onChange={(e) => setNewEntityName(e.target.value)}
+                                className="col-span-3" 
+                              />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="type" className="text-right">
+                                Type
+                              </Label>
+                              <select 
+                                id="type"
+                                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={newEntityType}
+                                onChange={(e) => setNewEntityType(e.target.value)}
+                              >
+                                <option value="campaign">Campaign</option>
+                                <option value="customer">Customer</option>
+                                <option value="report">Report</option>
+                              </select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button type="submit" onClick={handleCreateEntity}>Create</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
             
-            <div className="flex flex-col flex-1 p-4 space-y-1">
-              {navItems.map((item, index) => (
-                <Button
-                  key={index}
-                  variant={item.active ? "default" : "ghost"}
-                  className={`justify-start ${
-                    item.active ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground'
-                  }`}
-                >
-                  <item.icon className="mr-2 h-5 w-5" />
-                  {item.label}
-                </Button>
-              ))}
-            </div>
-            
-            <div className="p-4 mt-auto">
+            <SidebarFooter className="mt-auto">
               <AgentStatusIndicator />
-            </div>
-            
-            <div className="p-4 space-y-1">
-              <Button variant="ghost" className="justify-start w-full text-sidebar-foreground">
-                <Settings className="mr-2 h-5 w-5" />
-                Settings
-              </Button>
-              <Button variant="ghost" className="justify-start w-full text-sidebar-foreground">
-                <HelpCircle className="mr-2 h-5 w-5" />
-                Help & Resources
-              </Button>
-            </div>
-            
-            <Separator className="bg-sidebar-border" />
-            
-            <div className="p-4">
-              <Card className="bg-sidebar-accent text-sidebar-accent-foreground">
+              
+              <Card className="bg-sidebar-accent text-sidebar-accent-foreground m-2">
                 <div className="flex items-center justify-between p-3">
                   <div className="flex items-center space-x-2">
                     <div className="rounded-full bg-sidebar-accent-foreground h-8 w-8 flex items-center justify-center">
@@ -111,27 +190,15 @@ const Index = () => {
                   </div>
                 </div>
               </Card>
-            </div>
+            </SidebarFooter>
+          </Sidebar>
+          
+          {/* Main Content */}
+          <div className="flex-1 overflow-auto">
+            <Dashboard />
           </div>
         </div>
-        
-        {/* Mobile Sidebar Toggle */}
-        {isMobile && !sidebarOpen && (
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="fixed top-4 left-4 z-40 md:hidden" 
-            onClick={toggleSidebar}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
-        
-        {/* Main Content */}
-        <div className="flex-1">
-          <Dashboard />
-        </div>
-      </div>
+      </SidebarProvider>
     </AgentProvider>
   );
 };

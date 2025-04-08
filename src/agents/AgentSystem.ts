@@ -42,6 +42,7 @@ export class AgentSystem {
 
   constructor() {
     this.taskQueue = [];
+    console.log("AgentSystem initialized");
   }
 
   async initialize(): Promise<void> {
@@ -51,6 +52,7 @@ export class AgentSystem {
       this.setupAgents();
       this.setupGraphs();
       this.isInitialized = true;
+      console.log("AgentSystem fully initialized with agents and graphs");
     } catch (error) {
       console.error("Failed to initialize agent system:", error);
       throw error;
@@ -77,6 +79,8 @@ export class AgentSystem {
         }
       });
     });
+    
+    console.log(`Setup ${agentTypes.length} agents`);
   }
 
   private setupGraphs(): void {
@@ -102,6 +106,8 @@ export class AgentSystem {
       
       this.graphs.set(agentType, graph);
     });
+    
+    console.log(`Setup ${this.graphs.size} agent graphs`);
   }
 
   async runTask(taskType: string, params: any = {}): Promise<Record<string, any>> {
@@ -110,8 +116,10 @@ export class AgentSystem {
     }
 
     try {
+      console.log(`Running task ${taskType} with params:`, params);
       const graph = this.graphs.get(taskType);
       const result = await graph.invoke(params);
+      console.log(`Task ${taskType} completed with result:`, result);
       return result;
     } catch (error) {
       console.error(`Error running task ${taskType}:`, error);
@@ -123,6 +131,7 @@ export class AgentSystem {
     // Generate initial mock data
     const results: Record<string, any> = {};
     
+    console.log("Running simulation for all agents");
     for (const [agentType, agent] of this.agents.entries()) {
       results[agentType] = await agent.run({});
     }
@@ -133,6 +142,7 @@ export class AgentSystem {
   startBackgroundTasks(callback: (results: Record<string, any>) => void): void {
     this.updateCallback = callback;
     
+    console.log("Starting background tasks");
     // Run background tasks every few minutes
     this.backgroundInterval = setInterval(async () => {
       if (!this.isInitialized) return;
@@ -142,24 +152,27 @@ export class AgentSystem {
         const agentTypes = Array.from(this.agents.keys());
         const randomType = agentTypes[Math.floor(Math.random() * agentTypes.length)];
         
+        console.log(`Running background task for agent ${randomType}`);
         const result = await this.runTask(randomType, {
           background: true,
           timestamp: new Date().toISOString()
         });
         
         if (this.updateCallback) {
+          console.log(`Updating with new data from ${randomType}`);
           this.updateCallback(result);
         }
       } catch (error) {
         console.error("Error in background task:", error);
       }
-    }, 2 * 60 * 1000); // Run every 2 minutes
+    }, 30 * 1000); // Run every 30 seconds for demonstration purposes
   }
 
   stopBackgroundTasks(): void {
     if (this.backgroundInterval) {
       clearInterval(this.backgroundInterval);
       this.backgroundInterval = null;
+      console.log("Background tasks stopped");
     }
   }
 }
