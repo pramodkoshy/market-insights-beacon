@@ -90,16 +90,40 @@ export class AgentSystem {
             if (type === "marketTrends" && params.industry) {
               customData.industryFocus = params.industry;
               customData.title = `Market Trends: ${params.industry} Industry`;
+              
+              if (params.reportName) {
+                customData.title = `Report: ${params.reportName}`;
+                customData.metadata = {
+                  reportId: params.reportId,
+                  generatedFor: params.reportName
+                };
+              }
             }
             
             if (type === "customerSegmentation" && params.segment) {
               customData.segmentName = params.segment;
               customData.title = `Customer Insights: ${params.segment} Segment`;
+              
+              if (params.customerName) {
+                customData.title = `Customer: ${params.customerName}`;
+                customData.metadata = {
+                  customerId: params.customerId,
+                  customerName: params.customerName
+                };
+              }
             }
             
             if (type === "campaignPerformance" && params.campaignId) {
               customData.campaignId = params.campaignId;
-              customData.title = `Campaign #${params.campaignId} Performance`;
+              customData.title = `Campaign Performance`;
+              
+              if (params.campaignName) {
+                customData.title = `Campaign: ${params.campaignName}`;
+                customData.metadata = {
+                  campaignId: params.campaignId,
+                  campaignName: params.campaignName
+                };
+              }
             }
             
             if (type === "roiAnalysis" && params.timeframe) {
@@ -109,6 +133,7 @@ export class AgentSystem {
             
             // Add metadata about parameters used
             customData.metadata = {
+              ...customData.metadata,
               generatedWith: params,
               timestamp: new Date().toISOString()
             };

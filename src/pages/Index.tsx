@@ -37,17 +37,36 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { useAgents } from '@/agents/AgentContext';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from '@/components/ui/form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+
+const createEntitySchema = z.object({
+  name: z.string().min(1, {
+    message: "Name is required",
+  }),
+  type: z.enum(["campaign", "customer", "report"]),
+});
 
 const Index = () => {
   const { toast: uiToast } = useToast();
   const navigate = useNavigate();
-  const [newEntityName, setNewEntityName] = useState("");
-  const [newEntityType, setNewEntityType] = useState("campaign");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [entities, setEntities] = useState({
     campaigns: [],
     customers: [],
     reports: []
+  });
+  const { isProcessing, runAllAgents, triggerTask } = useAgents();
+
+  const form = useForm({
+    resolver: zodResolver(createEntitySchema),
+    defaultValues: {
+      name: "",
+      type: "campaign",
+    },
   });
 
   const navItems = [
@@ -63,36 +82,38 @@ const Index = () => {
     toast(`Navigated to ${path}`);
   };
 
-  const handleCreateEntity = () => {
-    if (!newEntityName.trim()) {
-      toast.error("Please enter a name for the new entity");
-      return;
-    }
-    
+  const onSubmit = (values) => {
     // Create a new entity based on type
     const newEntity = {
       id: Date.now().toString(),
-      name: newEntityName,
-      type: newEntityType,
+      name: values.name,
+      type: values.type,
       createdAt: new Date().toISOString()
     };
     
     // Update the appropriate entity list
     setEntities(prev => {
-      if (newEntityType === 'campaign') {
+      if (values.type === 'campaign') {
         return { ...prev, campaigns: [...prev.campaigns, newEntity] };
-      } else if (newEntityType === 'customer') {
+      } else if (values.type === 'customer') {
         return { ...prev, customers: [...prev.customers, newEntity] };
-      } else if (newEntityType === 'report') {
+      } else if (values.type === 'report') {
         return { ...prev, reports: [...prev.reports, newEntity] };
       }
       return prev;
     });
     
-    toast.success(`Created new ${newEntityType}: ${newEntityName}`);
+    toast.success(`Created new ${values.type}: ${values.name}`);
     
-    setNewEntityName("");
+    form.reset();
     setDialogOpen(false);
+
+    // Trigger relevant agent based on entity type
+    const agentType = values.type === 'campaign' ? 'campaignPerformance' : 
+                      values.type === 'customer' ? 'customerSegmentation' : 
+                      'marketTrends';
+    
+    triggerTask(agentType, { entityName: values.name, entityId: newEntity.id });
   };
 
   return (
@@ -150,39 +171,62 @@ const Index = () => {
                               Add a new entity to your marketing dashboard.
                             </DialogDescription>
                           </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="name" className="text-right">
-                                Name
-                              </Label>
-                              <Input 
-                                id="name" 
-                                value={newEntityName}
-                                onChange={(e) => setNewEntityName(e.target.value)}
-                                className="col-span-3" 
+                          <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                              <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Name</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="Enter name" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
                               />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="type" className="text-right">
-                                Type
-                              </Label>
-                              <select 
-                                id="type"
-                                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                value={newEntityType}
-                                onChange={(e) => setNewEntityType(e.target.value)}
-                              >
-                                <option value="campaign">Campaign</option>
-                                <option value="customer">Customer</option>
-                                <option value="report">Report</option>
-                              </select>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button type="submit" onClick={handleCreateEntity}>Create</Button>
-                          </DialogFooter>
+                              <FormField
+                                control={form.control}
+                                name="type"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Type</FormLabel>
+                                    <FormControl>
+                                      <select 
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        {...field}
+                                      >
+                                        <option value="campaign">Campaign</option>
+                                        <option value="customer">Customer</option>
+                                        <option value="report">Report</option>
+                                      </select>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <DialogFooter>
+                                <Button type="submit" disabled={isProcessing}>
+                                  {isProcessing ? 'Creating...' : 'Create'}
+                                </Button>
+                              </DialogFooter>
+                            </form>
+                          </Form>
                         </DialogContent>
                       </Dialog>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => {
+                          toast.info("Running all agents...");
+                          runAllAgents();
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <TrendingUp className="mr-2 h-5 w-5" />
+                        <span>{isProcessing ? 'Processing...' : 'Run Analysis'}</span>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>
@@ -195,7 +239,13 @@ const Index = () => {
                     <SidebarMenu>
                       {entities.campaigns.map((campaign) => (
                         <SidebarMenuItem key={campaign.id}>
-                          <SidebarMenuButton onClick={() => toast.info(`Viewing campaign: ${campaign.name}`)}>
+                          <SidebarMenuButton onClick={() => {
+                            toast.info(`Viewing campaign: ${campaign.name}`);
+                            triggerTask('campaignPerformance', { 
+                              campaignId: campaign.id,
+                              campaignName: campaign.name 
+                            });
+                          }}>
                             <BarChart className="mr-2 h-5 w-5" />
                             <span>{campaign.name}</span>
                           </SidebarMenuButton>
@@ -213,7 +263,14 @@ const Index = () => {
                     <SidebarMenu>
                       {entities.customers.map((customer) => (
                         <SidebarMenuItem key={customer.id}>
-                          <SidebarMenuButton onClick={() => toast.info(`Viewing customer: ${customer.name}`)}>
+                          <SidebarMenuButton onClick={() => {
+                            toast.info(`Viewing customer: ${customer.name}`);
+                            triggerTask('customerSegmentation', {
+                              customerId: customer.id,
+                              customerName: customer.name,
+                              segment: 'high-value'
+                            });
+                          }}>
                             <Users className="mr-2 h-5 w-5" />
                             <span>{customer.name}</span>
                           </SidebarMenuButton>
@@ -231,7 +288,14 @@ const Index = () => {
                     <SidebarMenu>
                       {entities.reports.map((report) => (
                         <SidebarMenuItem key={report.id}>
-                          <SidebarMenuButton onClick={() => toast.info(`Viewing report: ${report.name}`)}>
+                          <SidebarMenuButton onClick={() => {
+                            toast.info(`Viewing report: ${report.name}`);
+                            triggerTask('marketTrends', {
+                              reportId: report.id,
+                              reportName: report.name,
+                              industry: 'technology'
+                            });
+                          }}>
                             <FileText className="mr-2 h-5 w-5" />
                             <span>{report.name}</span>
                           </SidebarMenuButton>
