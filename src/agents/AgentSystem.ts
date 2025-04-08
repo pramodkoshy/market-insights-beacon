@@ -73,9 +73,50 @@ export class AgentSystem {
       this.agents.set(type, {
         name: type,
         run: async (params: any) => {
-          // Simulate agent processing
+          // Simulate agent processing with custom parameters
           console.log(`Agent ${type} running with params:`, params);
-          return simulations[type] || { message: "No data available" };
+          
+          // Get the default simulation data
+          const defaultData = simulations[type] || { message: "No data available" };
+          
+          // If there are custom parameters, modify the simulation results
+          if (params && Object.keys(params).length > 0) {
+            console.log(`Customizing ${type} agent output based on parameters`);
+            
+            // Deep clone the data to avoid modifying the original
+            const customData = JSON.parse(JSON.stringify(defaultData));
+            
+            // Apply custom modifications based on agent type and parameters
+            if (type === "marketTrends" && params.industry) {
+              customData.industryFocus = params.industry;
+              customData.title = `Market Trends: ${params.industry} Industry`;
+            }
+            
+            if (type === "customerSegmentation" && params.segment) {
+              customData.segmentName = params.segment;
+              customData.title = `Customer Insights: ${params.segment} Segment`;
+            }
+            
+            if (type === "campaignPerformance" && params.campaignId) {
+              customData.campaignId = params.campaignId;
+              customData.title = `Campaign #${params.campaignId} Performance`;
+            }
+            
+            if (type === "roiAnalysis" && params.timeframe) {
+              customData.timeframe = params.timeframe;
+              customData.title = `ROI Analysis - ${params.timeframe}`;
+            }
+            
+            // Add metadata about parameters used
+            customData.metadata = {
+              generatedWith: params,
+              timestamp: new Date().toISOString()
+            };
+            
+            return customData;
+          }
+          
+          return defaultData;
         }
       });
     });
@@ -91,11 +132,13 @@ export class AgentSystem {
       const graph = SimpleRunnableSequence.from([
         {
           runAgent: async (input: any) => {
+            console.log(`Graph for ${agentType} running agent with input:`, input);
             return await agent.run(input);
           }
         },
         {
           processResults: async (input: any) => {
+            console.log(`Graph for ${agentType} processing results:`, input);
             return {
               [agentType]: input,
               timestamp: new Date().toISOString()
@@ -127,13 +170,17 @@ export class AgentSystem {
     }
   }
 
-  async runSimulation(): Promise<Record<string, any>> {
-    // Generate initial mock data
+  async runSimulation(customParams: Record<string, any> = {}): Promise<Record<string, any>> {
+    // Generate mock data based on parameters if provided
     const results: Record<string, any> = {};
     
-    console.log("Running simulation for all agents");
+    console.log("Running simulation for all agents with params:", customParams);
     for (const [agentType, agent] of this.agents.entries()) {
-      results[agentType] = await agent.run({});
+      // Get agent-specific parameters if provided
+      const agentParams = customParams[agentType] || {};
+      console.log(`Running simulation for ${agentType} with params:`, agentParams);
+      
+      results[agentType] = await agent.run(agentParams);
     }
     
     return results;

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   BarChart, 
   LayoutDashboard, 
@@ -36,13 +36,19 @@ import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 const Index = () => {
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const navigate = useNavigate();
-  const [newEntityName, setNewEntityName] = React.useState("");
-  const [newEntityType, setNewEntityType] = React.useState("campaign");
-  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [newEntityName, setNewEntityName] = useState("");
+  const [newEntityType, setNewEntityType] = useState("campaign");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [entities, setEntities] = useState({
+    campaigns: [],
+    customers: [],
+    reports: []
+  });
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: "/", active: true },
@@ -53,28 +59,37 @@ const Index = () => {
   ];
 
   const handleNavigation = (path) => {
-    if (path !== "/") {
-      toast({
-        title: "Navigation",
-        description: `This would navigate to ${path}`,
-      });
-    }
+    navigate(path);
+    toast(`Navigated to ${path}`);
   };
 
   const handleCreateEntity = () => {
     if (!newEntityName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a name for the new entity",
-        variant: "destructive"
-      });
+      toast.error("Please enter a name for the new entity");
       return;
     }
     
-    toast({
-      title: "Success",
-      description: `Created new ${newEntityType}: ${newEntityName}`,
+    // Create a new entity based on type
+    const newEntity = {
+      id: Date.now().toString(),
+      name: newEntityName,
+      type: newEntityType,
+      createdAt: new Date().toISOString()
+    };
+    
+    // Update the appropriate entity list
+    setEntities(prev => {
+      if (newEntityType === 'campaign') {
+        return { ...prev, campaigns: [...prev.campaigns, newEntity] };
+      } else if (newEntityType === 'customer') {
+        return { ...prev, customers: [...prev.customers, newEntity] };
+      } else if (newEntityType === 'report') {
+        return { ...prev, reports: [...prev.reports, newEntity] };
+      }
+      return prev;
     });
+    
+    toast.success(`Created new ${newEntityType}: ${newEntityName}`);
     
     setNewEntityName("");
     setDialogOpen(false);
@@ -103,7 +118,7 @@ const Index = () => {
                     {navItems.map((item) => (
                       <SidebarMenuItem key={item.label}>
                         <SidebarMenuButton 
-                          isActive={item.active}
+                          isActive={window.location.pathname === item.path}
                           tooltip={item.label}
                           onClick={() => handleNavigation(item.path)}
                         >
@@ -172,6 +187,60 @@ const Index = () => {
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
+
+              {entities.campaigns.length > 0 && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>Campaigns</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {entities.campaigns.map((campaign) => (
+                        <SidebarMenuItem key={campaign.id}>
+                          <SidebarMenuButton onClick={() => toast.info(`Viewing campaign: ${campaign.name}`)}>
+                            <BarChart className="mr-2 h-5 w-5" />
+                            <span>{campaign.name}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
+
+              {entities.customers.length > 0 && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>Customers</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {entities.customers.map((customer) => (
+                        <SidebarMenuItem key={customer.id}>
+                          <SidebarMenuButton onClick={() => toast.info(`Viewing customer: ${customer.name}`)}>
+                            <Users className="mr-2 h-5 w-5" />
+                            <span>{customer.name}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
+
+              {entities.reports.length > 0 && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>Reports</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {entities.reports.map((report) => (
+                        <SidebarMenuItem key={report.id}>
+                          <SidebarMenuButton onClick={() => toast.info(`Viewing report: ${report.name}`)}>
+                            <FileText className="mr-2 h-5 w-5" />
+                            <span>{report.name}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
             </SidebarContent>
             
             <SidebarFooter className="mt-auto">
