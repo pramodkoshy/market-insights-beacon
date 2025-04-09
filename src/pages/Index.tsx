@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   BarChart, 
@@ -85,6 +84,7 @@ interface AgentConfig {
   marketVertical?: string;
   emergingTrends?: boolean;
   focusAreas?: string[];
+  [key: string]: string | boolean | string[] | undefined;
 }
 
 const entitySchema = z.object({
