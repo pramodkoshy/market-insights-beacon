@@ -304,7 +304,7 @@ const Index = () => {
         type: values.type,
         agentConfig: values.agentConfig,
         createdAt: new Date().toISOString(),
-        segment: values.agentConfig.segment // Add segment property
+        segment: values.agentConfig.segment 
       };
       
       setEntities(prev => {
