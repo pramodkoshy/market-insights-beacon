@@ -52,7 +52,7 @@ interface EntityBase {
   type: "campaign" | "customer" | "report";
   createdAt: string;
   updatedAt?: string;
-  segment?: string; // Add the missing segment property
+  segment?: string; 
   agentConfig: AgentConfig;
 }
 
@@ -303,7 +303,8 @@ const Index = () => {
         name: values.name,
         type: values.type,
         agentConfig: values.agentConfig,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        segment: values.agentConfig.segment // Add segment property
       };
       
       setEntities(prev => {
