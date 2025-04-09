@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   BarChart, 
@@ -51,6 +52,7 @@ interface EntityBase {
   type: "campaign" | "customer" | "report";
   createdAt: string;
   updatedAt?: string;
+  segment?: string; // Add the missing segment property
   agentConfig: AgentConfig;
 }
 

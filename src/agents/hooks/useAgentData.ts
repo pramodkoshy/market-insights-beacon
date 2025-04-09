@@ -83,7 +83,7 @@ export function useAgentData(agentType: string, defaultParams: Record<string, an
         
         // Add to config history
         const newConfig: AgentConfigHistory = {
-          timestamp: new Date().toISOString(),
+          timestamp: new Date().toISOString(), // Convert Date to string
           params: mergedParams,
           configuredBy: 'user'
         };
