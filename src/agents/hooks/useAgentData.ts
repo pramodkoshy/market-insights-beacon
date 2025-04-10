@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAgents } from '../AgentContext';
 
@@ -119,6 +120,9 @@ export function useAgentData(agentType: string, defaultParams: Record<string, an
     }
   }, [configHistory, refreshData, agentType]);
 
+  // Convert Date object to string if it exists
+  const formattedLastUpdate = lastUpdate ? lastUpdate.toISOString() : null;
+
   return {
     data,
     loading: loading || (isProcessing && !data),
@@ -128,6 +132,6 @@ export function useAgentData(agentType: string, defaultParams: Record<string, an
     currentParams,
     configHistory,
     rerunWithConfig,
-    lastUpdate,
+    lastUpdate: formattedLastUpdate,
   };
 }
