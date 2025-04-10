@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TopNavigation } from './TopNavigation';
+import { AgentProvider } from '@/agents/AgentContext';
 
 export function AgentConfigPage() {
   return (
@@ -13,16 +14,17 @@ export function AgentConfigPage() {
           <h2 className="text-3xl font-bold tracking-tight">Agent Configuration</h2>
         </div>
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Agent Settings</CardTitle>
-            <CardDescription>Configure AI agent behavior and parameters</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Agent configuration content will go here */}
-            <p>Configure your AI agents' behavior, parameters, and integration settings.</p>
-          </CardContent>
-        </Card>
+        <AgentProvider>
+          <Card>
+            <CardHeader>
+              <CardTitle>Agent Settings</CardTitle>
+              <CardDescription>Configure AI agent behavior and parameters</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>Configure your AI agents' behavior, parameters, and integration settings.</p>
+            </CardContent>
+          </Card>
+        </AgentProvider>
       </div>
     </div>
   );

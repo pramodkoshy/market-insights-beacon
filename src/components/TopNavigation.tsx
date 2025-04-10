@@ -14,37 +14,52 @@ export function TopNavigation() {
     <div className="border-b sticky top-0 z-50 w-full bg-background">
       <div className="flex h-16 items-center px-4 md:px-6">
         <div className="mr-4 md:mr-6 flex items-center gap-2">
-          <PieChart className="h-6 w-6" />
-          <span className="font-bold text-xl hidden md:inline-block">Marketing Analytics</span>
+          <PieChart className="h-6 w-6 cursor-pointer" onClick={() => navigate('/')} />
+          <span className="font-bold text-xl hidden md:inline-block cursor-pointer" onClick={() => navigate('/')}>Marketing Analytics</span>
         </div>
         
         <Menubar className="border-none bg-transparent">
           <MenubarMenu>
-            <MenubarTrigger className={`px-3 ${isActive('/') ? 'font-medium text-primary' : ''}`} onClick={() => navigate('/')}>
+            <MenubarTrigger 
+              className={`px-3 ${isActive('/') ? 'font-medium text-primary' : ''}`} 
+              onClick={() => navigate('/')}
+            >
               Overview
             </MenubarTrigger>
           </MenubarMenu>
           
           <MenubarMenu>
-            <MenubarTrigger className={`px-3 ${isActive('/campaigns') ? 'font-medium text-primary' : ''}`} onClick={() => navigate('/campaigns')}>
+            <MenubarTrigger 
+              className={`px-3 ${isActive('/campaigns') ? 'font-medium text-primary' : ''}`} 
+              onClick={() => navigate('/campaigns')}
+            >
               Campaigns
             </MenubarTrigger>
           </MenubarMenu>
           
           <MenubarMenu>
-            <MenubarTrigger className={`px-3 ${isActive('/customers') ? 'font-medium text-primary' : ''}`} onClick={() => navigate('/customers')}>
+            <MenubarTrigger 
+              className={`px-3 ${isActive('/customers') ? 'font-medium text-primary' : ''}`} 
+              onClick={() => navigate('/customers')}
+            >
               Customers
             </MenubarTrigger>
           </MenubarMenu>
           
           <MenubarMenu>
-            <MenubarTrigger className={`px-3 ${isActive('/roi') ? 'font-medium text-primary' : ''}`} onClick={() => navigate('/roi')}>
+            <MenubarTrigger 
+              className={`px-3 ${isActive('/roi') ? 'font-medium text-primary' : ''}`} 
+              onClick={() => navigate('/roi')}
+            >
               ROI Analysis
             </MenubarTrigger>
           </MenubarMenu>
           
           <MenubarMenu>
-            <MenubarTrigger className={`px-3 ${isActive('/reports') ? 'font-medium text-primary' : ''}`} onClick={() => navigate('/reports')}>
+            <MenubarTrigger 
+              className={`px-3 ${isActive('/reports') ? 'font-medium text-primary' : ''}`} 
+              onClick={() => navigate('/reports')}
+            >
               Reports
             </MenubarTrigger>
           </MenubarMenu>
@@ -79,10 +94,6 @@ export function TopNavigation() {
             </MenubarContent>
           </MenubarMenu>
         </Menubar>
-        
-        <div className="ml-auto flex items-center gap-2">
-          {/* Add any additional elements you want on the right side of the top navigation */}
-        </div>
       </div>
     </div>
   );
