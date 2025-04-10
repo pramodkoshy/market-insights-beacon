@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FileText, Calendar, Download, Mail, Clock, Plus, CheckCircle, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -314,7 +315,6 @@ export function ReportGenerator() {
               <Button className="w-full" onClick={handleScheduleReport}>Schedule Report</Button>
             </CardFooter>
           </Card>
-          
         </TabsContent>
         
         <TabsContent value="scheduled" className="space-y-4">
@@ -373,7 +373,7 @@ export function ReportGenerator() {
                           <td className="p-4 align-middle">
                             <div className="flex space-x-2">
                               <Button variant="outline" size="sm">Edit</Button>
-                              <Button variant="outline" size="sm" className="text-analytics-red">
+                              <Button variant="outline" size="sm" className="text-red-500">
                                 {report.status === 'Active' ? 'Pause' : 'Activate'}
                               </Button>
                             </div>
