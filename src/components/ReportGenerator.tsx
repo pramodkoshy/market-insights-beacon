@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FileText, Calendar, Download, Mail, Clock, Plus, CheckCircle, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +14,7 @@ import { ReportAgentIntegration } from './ReportAgentIntegration';
 export function ReportGenerator() {
   const [reportType, setReportType] = useState("comprehensive");
   const [frequency, setFrequency] = useState("weekly");
+  const [reportFormat, setReportFormat] = useState("pdf");
   const [reportInsights, setReportInsights] = useState<any>(null);
   
   const scheduledReports = [
@@ -97,11 +97,65 @@ export function ReportGenerator() {
   ];
   
   const handleGenerateReport = () => {
+    const downloadReport = () => {
+      const reportData = {
+        type: reportType,
+        date: new Date().toISOString(),
+        metrics: reportMetrics.map(m => m.label),
+        data: "Sample report data"
+      };
+      
+      let fileContent, fileType, fileExtension;
+      
+      switch(reportFormat) {
+        case "pdf":
+          fileContent = "PDF content would be generated server-side";
+          fileType = "application/pdf";
+          fileExtension = "pdf";
+          break;
+        case "excel":
+          fileContent = "Excel content would be generated server-side";
+          fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+          fileExtension = "xlsx";
+          break;
+        case "csv":
+          fileContent = "Date,Metric,Value\n" + 
+                        reportMetrics.map(m => `${new Date().toISOString()},${m.label},100`).join("\n");
+          fileType = "text/csv";
+          fileExtension = "csv";
+          break;
+        case "ppt":
+          fileContent = "PowerPoint content would be generated server-side";
+          fileType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+          fileExtension = "pptx";
+          break;
+        default:
+          fileContent = JSON.stringify(reportData, null, 2);
+          fileType = "application/json";
+          fileExtension = "json";
+      }
+      
+      if (reportFormat === "csv") {
+        const blob = new Blob([fileContent], { type: fileType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportType}_report.${fileExtension}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        console.log(`Downloading ${reportFormat} file: ${reportType}_report.${fileExtension}`);
+        toast.info(`${reportFormat.toUpperCase()} reports require server-side generation. This is a demo.`);
+      }
+    };
+    
     toast.success("Report generated successfully!", {
       description: "Your report is ready to download.",
       action: {
         label: "Download",
-        onClick: () => console.log("Download clicked"),
+        onClick: downloadReport,
       },
     });
   };
@@ -114,6 +168,33 @@ export function ReportGenerator() {
   
   const handleInsightsGenerated = (insights: any) => {
     setReportInsights(insights);
+  };
+  
+  const handleFormatChange = (value: string) => {
+    setReportFormat(value);
+  };
+  
+  const handleDownloadReport = (format: string) => {
+    toast.success(`Downloading report in ${format.toUpperCase()} format`, {
+      description: "Your download will begin shortly.",
+    });
+    
+    setTimeout(() => {
+      if (format === "csv") {
+        const csvContent = "Date,Metric,Value\n2025-04-10,Conversions,156\n2025-04-10,Clicks,2403";
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report_${new Date().getTime()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        toast.info(`${format.toUpperCase()} reports require server-side generation. This is a demo.`);
+      }
+    }, 500);
   };
   
   return (
@@ -176,7 +257,7 @@ export function ReportGenerator() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="format">Report Format</Label>
-                  <Select defaultValue="pdf">
+                  <Select defaultValue={reportFormat} onValueChange={handleFormatChange}>
                     <SelectTrigger id="format">
                       <SelectValue placeholder="Select format" />
                     </SelectTrigger>
@@ -297,9 +378,9 @@ export function ReportGenerator() {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="format">Report Format</Label>
+                <Label htmlFor="schedule-format">Report Format</Label>
                 <Select defaultValue="pdf">
-                  <SelectTrigger id="format">
+                  <SelectTrigger id="schedule-format">
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
                   <SelectContent>
@@ -419,13 +500,13 @@ export function ReportGenerator() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadReport("pdf")}>
                               PDF
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadReport("excel")}>
                               Excel
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadReport("csv")}>
                               CSV
                             </DropdownMenuItem>
                           </DropdownMenuContent>

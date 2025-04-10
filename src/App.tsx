@@ -18,9 +18,9 @@ const App = () => (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
-        <Route path="/campaigns" element={<Index />} />
-        <Route path="/customers" element={<Index />} />
-        <Route path="/roi" element={<Index />} />
+        <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/roi" element={<ROIPage />} />
         <Route path="/reports" element={<ReportPage />} />
         
         {/* Configuration routes */}
