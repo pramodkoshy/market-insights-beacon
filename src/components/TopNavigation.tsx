@@ -50,9 +50,14 @@ export function TopNavigation() {
           </MenubarMenu>
           
           <MenubarMenu>
-            <MenubarTrigger className="px-3">
+            <MenubarTrigger className={`px-3 ${
+              isActive('/agent-config') || 
+              isActive('/entities-config') || 
+              isActive('/reporting-config') || 
+              isActive('/system-config') ? 'font-medium text-primary' : ''
+            }`}>
               <Settings className="h-4 w-4 mr-1" />
-              Config
+              Configuration
             </MenubarTrigger>
             <MenubarContent>
               <MenubarItem onClick={() => navigate('/agent-config')}>
