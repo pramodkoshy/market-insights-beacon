@@ -16,7 +16,6 @@ export function ReportGenerator() {
   const [frequency, setFrequency] = useState("weekly");
   const [reportInsights, setReportInsights] = useState<any>(null);
   
-  // Sample scheduled reports
   const scheduledReports = [
     {
       id: 1,
@@ -56,7 +55,6 @@ export function ReportGenerator() {
     }
   ];
   
-  // Sample recent reports
   const recentReports = [
     {
       id: 1,
@@ -88,7 +86,6 @@ export function ReportGenerator() {
     }
   ];
   
-  // Report metrics to include
   const reportMetrics = [
     { id: "campaign-performance", label: "Campaign Performance" },
     { id: "roi-analysis", label: "ROI Analysis" },
@@ -309,139 +306,142 @@ export function ReportGenerator() {
                     <SelectItem value="excel">Excel</SelectItem>
                     <SelectItem value="csv">CSV</SelectItem>
                   </SelectContent>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full" onClick={handleScheduleReport}>Schedule Report</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
+                </Select>
+              </div>
+              
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full" onClick={handleScheduleReport}>Schedule Report</Button>
+            </CardFooter>
+          </Card>
+          
+        </TabsContent>
         
-          <TabsContent value="scheduled" className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Scheduled Reports</CardTitle>
-                  <CardDescription>Reports set for automated delivery</CardDescription>
-                </div>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" /> New Schedule
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <div className="w-full overflow-auto">
-                    <table className="w-full caption-bottom text-sm">
-                      <thead>
-                        <tr className="border-b transition-colors hover:bg-muted/50">
-                          <th className="h-12 px-4 text-left align-middle font-medium">Report Name</th>
-                          <th className="h-12 px-4 text-left align-middle font-medium">Type</th>
-                          <th className="h-12 px-4 text-left align-middle font-medium">Recipients</th>
-                          <th className="h-12 px-4 text-left align-middle font-medium">Frequency</th>
-                          <th className="h-12 px-4 text-left align-middle font-medium">Next Delivery</th>
-                          <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                          <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {scheduledReports.map((report) => (
-                          <tr 
-                            key={report.id} 
-                            className="border-b transition-colors hover:bg-muted/50"
-                          >
-                            <td className="p-4 align-middle">{report.name}</td>
-                            <td className="p-4 align-middle">{report.type}</td>
-                            <td className="p-4 align-middle">
-                              <div className="flex items-center">
-                                <span>{report.recipients.length}</span>
-                                <Button variant="ghost" size="sm">
-                                  <ChevronDown className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </td>
-                            <td className="p-4 align-middle">{report.frequency}</td>
-                            <td className="p-4 align-middle">{report.nextDelivery}</td>
-                            <td className="p-4 align-middle">
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                report.status === 'Active' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {report.status}
-                              </span>
-                            </td>
-                            <td className="p-4 align-middle">
-                              <div className="flex space-x-2">
-                                <Button variant="outline" size="sm">Edit</Button>
-                                <Button variant="outline" size="sm" className="text-analytics-red">
-                                  {report.status === 'Active' ? 'Pause' : 'Activate'}
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        
-          <TabsContent value="history" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Reports</CardTitle>
-                <CardDescription>View and download previously generated reports</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentReports.map((report) => (
-                    <Card key={report.id} className="overflow-hidden">
-                      <div className="flex items-center p-4">
-                        <div className="mr-4 p-2 bg-primary/10 rounded-full">
-                          <FileText className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-base font-medium">{report.name}</h3>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Calendar className="h-3.5 w-3.5 mr-1" />
-                            <span className="mr-3">{report.date}</span>
-                            <Download className="h-3.5 w-3.5 mr-1" />
-                            <span>{report.downloads} downloads</span>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                Download <ChevronDown className="h-4 w-4 ml-1" />
+        <TabsContent value="scheduled" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Scheduled Reports</CardTitle>
+                <CardDescription>Reports set for automated delivery</CardDescription>
+              </div>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" /> New Schedule
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <div className="w-full overflow-auto">
+                  <table className="w-full caption-bottom text-sm">
+                    <thead>
+                      <tr className="border-b transition-colors hover:bg-muted/50">
+                        <th className="h-12 px-4 text-left align-middle font-medium">Report Name</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium">Type</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium">Recipients</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium">Frequency</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium">Next Delivery</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scheduledReports.map((report) => (
+                        <tr 
+                          key={report.id} 
+                          className="border-b transition-colors hover:bg-muted/50"
+                        >
+                          <td className="p-4 align-middle">{report.name}</td>
+                          <td className="p-4 align-middle">{report.type}</td>
+                          <td className="p-4 align-middle">
+                            <div className="flex items-center">
+                              <span>{report.recipients.length}</span>
+                              <Button variant="ghost" size="sm">
+                                <ChevronDown className="h-4 w-4" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                PDF
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                Excel
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                CSV
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button variant="ghost" size="sm">
-                            <Mail className="h-4 w-4" />
-                          </Button>
+                            </div>
+                          </td>
+                          <td className="p-4 align-middle">{report.frequency}</td>
+                          <td className="p-4 align-middle">{report.nextDelivery}</td>
+                          <td className="p-4 align-middle">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              report.status === 'Active' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {report.status}
+                            </span>
+                          </td>
+                          <td className="p-4 align-middle">
+                            <div className="flex space-x-2">
+                              <Button variant="outline" size="sm">Edit</Button>
+                              <Button variant="outline" size="sm" className="text-analytics-red">
+                                {report.status === 'Active' ? 'Pause' : 'Activate'}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      
+        <TabsContent value="history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Reports</CardTitle>
+              <CardDescription>View and download previously generated reports</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentReports.map((report) => (
+                  <Card key={report.id} className="overflow-hidden">
+                    <div className="flex items-center p-4">
+                      <div className="mr-4 p-2 bg-primary/10 rounded-full">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-base font-medium">{report.name}</h3>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Calendar className="h-3.5 w-3.5 mr-1" />
+                          <span className="mr-3">{report.date}</span>
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                          <span>{report.downloads} downloads</span>
                         </div>
                       </div>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    );
-  }
+                      <div className="flex space-x-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Download <ChevronDown className="h-4 w-4 ml-1" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              CSV
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="ghost" size="sm">
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
