@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 interface AgentLog {
   id: string;
@@ -9,14 +10,18 @@ interface AgentLog {
   status: 'success' | 'warning' | 'error';
   message: string;
   duration: number;
+  workflowId?: string;
+  workflowName?: string;
+  channel?: string;
 }
 
 interface AgentLogsTableProps {
   logs: AgentLog[];
   limit?: number;
+  showWorkflow?: boolean;
 }
 
-export function AgentLogsTable({ logs, limit = 5 }: AgentLogsTableProps) {
+export function AgentLogsTable({ logs, limit = 5, showWorkflow = false }: AgentLogsTableProps) {
   const displayLogs = limit ? logs.slice(0, limit) : logs;
   
   return (
@@ -26,6 +31,8 @@ export function AgentLogsTable({ logs, limit = 5 }: AgentLogsTableProps) {
           <TableRow>
             <TableHead>Timestamp</TableHead>
             <TableHead>Agent Type</TableHead>
+            {showWorkflow && <TableHead>Workflow</TableHead>}
+            {showWorkflow && <TableHead>Channel</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Message</TableHead>
             <TableHead>Duration</TableHead>
@@ -37,18 +44,21 @@ export function AgentLogsTable({ logs, limit = 5 }: AgentLogsTableProps) {
               <TableRow key={log.id}>
                 <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
                 <TableCell>{log.agentType}</TableCell>
+                {showWorkflow && <TableCell>{log.workflowName || '-'}</TableCell>}
+                {showWorkflow && <TableCell>{log.channel || '-'}</TableCell>}
                 <TableCell>
-                  <span 
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  <Badge 
+                    variant={
                       log.status === 'success' 
-                        ? 'bg-green-100 text-green-800' 
+                        ? 'success' 
                         : log.status === 'warning'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                    }`}
+                          ? 'warning'
+                          : 'destructive'
+                    }
+                    className="capitalize"
                   >
                     {log.status}
-                  </span>
+                  </Badge>
                 </TableCell>
                 <TableCell>{log.message}</TableCell>
                 <TableCell>{log.duration}ms</TableCell>
@@ -56,7 +66,7 @@ export function AgentLogsTable({ logs, limit = 5 }: AgentLogsTableProps) {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+              <TableCell colSpan={showWorkflow ? 7 : 5} className="text-center py-4 text-muted-foreground">
                 No logs found
               </TableCell>
             </TableRow>

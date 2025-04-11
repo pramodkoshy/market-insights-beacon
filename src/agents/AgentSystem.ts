@@ -32,6 +32,26 @@ interface AgentTask {
   error?: any;
 }
 
+interface N8nWorkflow {
+  id: string;
+  name: string;
+  channelType: string;
+  n8nUrl: string;
+  apiKey: string;
+  workflowId: string;
+  isActive: boolean;
+  lastRun?: string;
+  status?: 'success' | 'warning' | 'error';
+}
+
+interface WorkflowExecutionResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+  executionTime: number;
+  workflowId: string;
+}
+
 export class AgentSystem {
   private isInitialized: boolean = false;
   private taskQueue: AgentTask[] = [];
@@ -39,6 +59,8 @@ export class AgentSystem {
   private agents: Map<string, any> = new Map();
   private graphs: Map<string, any> = new Map();
   private updateCallback: ((results: Record<string, any>) => void) | null = null;
+  private workflows: N8nWorkflow[] = [];
+  private workflowLogs: any[] = [];
 
   constructor() {
     this.taskQueue = [];
@@ -85,6 +107,31 @@ export class AgentSystem {
             
             // Deep clone the data to avoid modifying the original
             const customData = JSON.parse(JSON.stringify(defaultData));
+            
+            // Check if we need to trigger any workflows for this agent run
+            if (params.triggerWorkflows && this.workflows.length > 0) {
+              console.log(`Looking for workflows to trigger for ${type} agent`);
+              
+              // Find any active workflows that should be triggered for this agent type
+              const relevantWorkflows = this.workflows.filter(wf => wf.isActive);
+              
+              if (relevantWorkflows.length > 0) {
+                console.log(`Found ${relevantWorkflows.length} active workflows to trigger`);
+                
+                // Trigger workflows in parallel
+                const workflowResults = await Promise.all(
+                  relevantWorkflows.map(workflow => this.executeN8nWorkflow(workflow, {
+                    agentType: type,
+                    timestamp: new Date().toISOString(),
+                    agentData: customData,
+                    ...params
+                  }))
+                );
+                
+                // Add workflow results to the agent output
+                customData.workflowExecutions = workflowResults;
+              }
+            }
             
             // Apply custom modifications based on agent type and parameters
             if (type === "marketTrends") {
@@ -261,7 +308,14 @@ export class AgentSystem {
     try {
       console.log(`Running task ${taskType} with params:`, params);
       const graph = this.graphs.get(taskType);
-      const result = await graph.invoke(params);
+      
+      // Add workflow triggering capability to all agent runs
+      const enhancedParams = {
+        ...params,
+        triggerWorkflows: true
+      };
+      
+      const result = await graph.invoke(enhancedParams);
       console.log(`Task ${taskType} completed with result:`, result);
       return result;
     } catch (error) {
@@ -321,6 +375,128 @@ export class AgentSystem {
       clearInterval(this.backgroundInterval);
       this.backgroundInterval = null;
       console.log("Background tasks stopped");
+    }
+  }
+  
+  setWorkflows(workflows: N8nWorkflow[]): void {
+    this.workflows = workflows;
+    console.log(`Updated workflows configuration with ${workflows.length} workflows`);
+  }
+  
+  getWorkflows(): N8nWorkflow[] {
+    return this.workflows;
+  }
+  
+  getWorkflowLogs(): any[] {
+    return this.workflowLogs;
+  }
+  
+  async executeN8nWorkflow(workflow: N8nWorkflow, data: any): Promise<WorkflowExecutionResult> {
+    console.log(`Executing n8n workflow: ${workflow.name} (ID: ${workflow.id})`);
+    console.log(`Workflow data:`, data);
+    
+    const startTime = Date.now();
+    
+    try {
+      // In a real implementation, this would make an HTTP request to the n8n API
+      // For our demo, we'll simulate a successful execution
+      
+      // Simulate random execution time between 0.5-3 seconds
+      const executionTime = Math.floor(Math.random() * 2500) + 500;
+      await new Promise(resolve => setTimeout(resolve, executionTime));
+      
+      // 90% chance of success, 10% chance of failure
+      const isSuccess = Math.random() > 0.1;
+      
+      if (!isSuccess) {
+        throw new Error("Workflow execution failed");
+      }
+      
+      // Create a log entry for this execution
+      const logEntry = {
+        id: `wf-exec-${Date.now()}`,
+        agentType: data.agentType,
+        timestamp: new Date().toISOString(),
+        status: 'success' as 'success' | 'warning' | 'error',
+        message: `Executed workflow: ${workflow.name} for ${data.agentType}`,
+        duration: executionTime,
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        channel: workflow.channelType
+      };
+      
+      // Add to logs
+      this.workflowLogs = [logEntry, ...this.workflowLogs];
+      
+      // Update workflow status
+      const updatedWorkflows = this.workflows.map(wf => {
+        if (wf.id === workflow.id) {
+          return {
+            ...wf,
+            lastRun: new Date().toISOString(),
+            status: 'success' as 'success' | 'warning' | 'error'
+          };
+        }
+        return wf;
+      });
+      
+      this.workflows = updatedWorkflows;
+      
+      const endTime = Date.now();
+      const executionTimeTotal = endTime - startTime;
+      
+      return {
+        success: true,
+        data: {
+          executionId: `exec-${Date.now()}`,
+          workflowName: workflow.name,
+          timestamp: new Date().toISOString()
+        },
+        executionTime: executionTimeTotal,
+        workflowId: workflow.id
+      };
+    } catch (error) {
+      console.error(`Error executing workflow ${workflow.name}:`, error);
+      
+      // Create an error log entry
+      const logEntry = {
+        id: `wf-exec-${Date.now()}`,
+        agentType: data.agentType,
+        timestamp: new Date().toISOString(),
+        status: 'error' as 'success' | 'warning' | 'error',
+        message: `Failed to execute workflow: ${workflow.name} - ${error instanceof Error ? error.message : 'Unknown error'}`,
+        duration: Date.now() - startTime,
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        channel: workflow.channelType
+      };
+      
+      // Add to logs
+      this.workflowLogs = [logEntry, ...this.workflowLogs];
+      
+      // Update workflow status to error
+      const updatedWorkflows = this.workflows.map(wf => {
+        if (wf.id === workflow.id) {
+          return {
+            ...wf,
+            lastRun: new Date().toISOString(),
+            status: 'error' as 'success' | 'warning' | 'error'
+          };
+        }
+        return wf;
+      });
+      
+      this.workflows = updatedWorkflows;
+      
+      const endTime = Date.now();
+      const executionTimeTotal = endTime - startTime;
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        executionTime: executionTimeTotal,
+        workflowId: workflow.id
+      };
     }
   }
 }
