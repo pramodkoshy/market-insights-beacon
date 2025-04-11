@@ -98,56 +98,37 @@ export function ReportGenerator() {
   
   const handleGenerateReport = () => {
     const downloadReport = () => {
-      const reportData = {
-        type: reportType,
-        date: new Date().toISOString(),
-        metrics: reportMetrics.map(m => m.label),
-        data: "Sample report data"
-      };
+      toast.info(`Generating ${reportFormat.toUpperCase()} report...`);
       
-      let fileContent, fileType, fileExtension;
-      
-      switch(reportFormat) {
-        case "pdf":
-          fileContent = "PDF content would be generated server-side";
-          fileType = "application/pdf";
-          fileExtension = "pdf";
-          break;
-        case "excel":
-          fileContent = "Excel content would be generated server-side";
-          fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-          fileExtension = "xlsx";
-          break;
-        case "csv":
-          fileContent = "Date,Metric,Value\n" + 
-                        reportMetrics.map(m => `${new Date().toISOString()},${m.label},100`).join("\n");
-          fileType = "text/csv";
-          fileExtension = "csv";
-          break;
-        case "ppt":
-          fileContent = "PowerPoint content would be generated server-side";
-          fileType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-          fileExtension = "pptx";
-          break;
-        default:
-          fileContent = JSON.stringify(reportData, null, 2);
-          fileType = "application/json";
-          fileExtension = "json";
-      }
-      
+      // For CSV format, we'll actually generate and download the file
       if (reportFormat === "csv") {
-        const blob = new Blob([fileContent], { type: fileType });
+        const csvHeaders = ["Metric", "Value", "Change"];
+        const csvRows = reportMetrics.map(metric => [
+          metric.label,
+          Math.floor(Math.random() * 1000),
+          `${Math.floor(Math.random() * 20) - 10}%`
+        ]);
+        
+        const csvContent = [
+          csvHeaders.join(','),
+          ...csvRows.map(row => row.join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${reportType}_report.${fileExtension}`;
+        a.download = `${reportType}_report.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        console.log("Downloaded CSV report");
       } else {
-        console.log(`Downloading ${reportFormat} file: ${reportType}_report.${fileExtension}`);
+        // For other formats, we'll show a message since we can't generate them in the browser
         toast.info(`${reportFormat.toUpperCase()} reports require server-side generation. This is a demo.`);
+        console.log(`Report would be generated in ${reportFormat} format on a real server`);
       }
     };
     
@@ -168,10 +149,12 @@ export function ReportGenerator() {
   
   const handleInsightsGenerated = (insights: any) => {
     setReportInsights(insights);
+    console.log("Received insights from agent:", insights);
   };
   
   const handleFormatChange = (value: string) => {
     setReportFormat(value);
+    console.log("Report format changed to:", value);
   };
   
   const handleDownloadReport = (format: string) => {
@@ -181,7 +164,7 @@ export function ReportGenerator() {
     
     setTimeout(() => {
       if (format === "csv") {
-        const csvContent = "Date,Metric,Value\n2025-04-10,Conversions,156\n2025-04-10,Clicks,2403";
+        const csvContent = "Date,Metric,Value\n2025-04-10,Conversions,156\n2025-04-10,Clicks,2403\n2025-04-10,Impressions,45982\n2025-04-10,CTR,5.23%";
         const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -191,6 +174,7 @@ export function ReportGenerator() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        console.log("Downloaded CSV report from history");
       } else {
         toast.info(`${format.toUpperCase()} reports require server-side generation. This is a demo.`);
       }
