@@ -15,6 +15,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AgentLogsTable } from './AgentLogsTable';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 const channelTypes = [
   { id: 'email', name: 'Email Marketing', icon: '📧' },
@@ -588,5 +590,3 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
     </div>
   );
 }
-
-import { Table } from '@/components/ui/table';
