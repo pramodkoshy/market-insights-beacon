@@ -21,7 +21,9 @@ import {
   Save, 
   X,
   ArrowLeft,
-  ArrowRight 
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -38,6 +40,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { EntityDetailForm } from './EntityDetailForm';
+import { AgentLogsTable } from './AgentLogsTable';
 
 // Sample entity types and their properties
 const entityTypes = {
@@ -472,10 +476,16 @@ export function EntitiesConfigPage() {
                     <Pagination className="mt-4">
                       <PaginationContent>
                         <PaginationItem>
-                          <PaginationPrevious 
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentPage === 1}
-                          />
+                            className="h-9 w-9"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span className="sr-only">Previous page</span>
+                          </Button>
                         </PaginationItem>
                         
                         {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -518,10 +528,16 @@ export function EntitiesConfigPage() {
                         }
                         
                         <PaginationItem>
-                          <PaginationNext 
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage === totalPages}
-                          />
+                            className="h-9 w-9"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                            <span className="sr-only">Next page</span>
+                          </Button>
                         </PaginationItem>
                       </PaginationContent>
                     </Pagination>
@@ -537,45 +553,19 @@ export function EntitiesConfigPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Timestamp</TableHead>
-                          <TableHead>Agent Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Message</TableHead>
-                          <TableHead>Duration</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {logs
-                          .filter(log => log.entityType === type)
-                          .slice(0, 5)
-                          .map(log => (
-                            <TableRow key={log.id}>
-                              <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
-                              <TableCell>{log.agentType}</TableCell>
-                              <TableCell>
-                                <span 
-                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                    log.status === 'success' 
-                                      ? 'bg-green-100 text-green-800' 
-                                      : log.status === 'warning'
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : 'bg-red-100 text-red-800'
-                                  }`}
-                                >
-                                  {log.status}
-                                </span>
-                              </TableCell>
-                              <TableCell>{log.message}</TableCell>
-                              <TableCell>{log.duration}ms</TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <AgentLogsTable 
+                    logs={logs
+                      .filter(log => log.entityType === type)
+                      .map(log => ({
+                        id: log.id,
+                        timestamp: log.timestamp,
+                        agentType: log.agentType,
+                        status: log.status,
+                        message: log.message,
+                        duration: log.duration
+                      }))}
+                    limit={5}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -593,70 +583,12 @@ export function EntitiesConfigPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {entityTypes[activeTab]?.properties.map(prop => (
-                  <FormField
-                    key={prop.name}
-                    control={form.control}
-                    name={prop.name}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {prop.name.replace('_', ' ')}
-                          {prop.required && <span className="text-red-500 ml-1">*</span>}
-                        </FormLabel>
-                        <FormControl>
-                          {prop.type === 'enum' ? (
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder={`Select ${prop.name}`} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {prop.options?.map(option => (
-                                  <SelectItem key={option} value={option}>
-                                    {option}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : prop.type === 'date' ? (
-                            <Input 
-                              type="date" 
-                              {...field} 
-                            />
-                          ) : prop.type === 'number' ? (
-                            <Input 
-                              type="number" 
-                              {...field} 
-                              onChange={e => field.onChange(e.target.valueAsNumber)}
-                            />
-                          ) : (
-                            <Input {...field} />
-                          )}
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ))}
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Entity
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <EntityDetailForm
+            form={form}
+            onSubmit={onSubmit}
+            onCancel={() => setIsAddDialogOpen(false)}
+            entityProperties={entityTypes[activeTab]?.properties || []}
+          />
         </DialogContent>
       </Dialog>
       
@@ -670,72 +602,12 @@ export function EntitiesConfigPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {entityTypes[activeTab]?.properties.map(prop => (
-                  <FormField
-                    key={prop.name}
-                    control={form.control}
-                    name={prop.name}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {prop.name.replace('_', ' ')}
-                          {prop.required && <span className="text-red-500 ml-1">*</span>}
-                        </FormLabel>
-                        <FormControl>
-                          {prop.type === 'enum' ? (
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                              value={field.value}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder={`Select ${prop.name}`} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {prop.options?.map(option => (
-                                  <SelectItem key={option} value={option}>
-                                    {option}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : prop.type === 'date' ? (
-                            <Input 
-                              type="date" 
-                              {...field} 
-                            />
-                          ) : prop.type === 'number' ? (
-                            <Input 
-                              type="number" 
-                              {...field} 
-                              onChange={e => field.onChange(Number(e.target.value))}
-                              value={field.value || ''}
-                            />
-                          ) : (
-                            <Input {...field} />
-                          )}
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ))}
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  <Save className="mr-2 h-4 w-4" />
-                  Update Entity
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <EntityDetailForm
+            form={form}
+            onSubmit={onSubmit}
+            onCancel={() => setIsEditDialogOpen(false)}
+            entityProperties={entityTypes[activeTab]?.properties || []}
+          />
         </DialogContent>
       </Dialog>
       
