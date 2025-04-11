@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { RotateCw, Plus, Workflow, Share2, Key, Save, ExternalLink } from 'lucide-react';
+import { RotateCw, Plus, Workflow, Share2, Key, Save, ExternalLink, Database } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
@@ -27,9 +26,10 @@ const channelTypes = [
   { id: 'chat', name: 'Chat/Messaging', icon: '💬' },
   { id: 'ads', name: 'Paid Advertising', icon: '💰' },
   { id: 'crm', name: 'CRM Integration', icon: '🔄' },
+  { id: 'analytics', name: 'Analytics Platform', icon: '📊' },
+  { id: 'ecommerce', name: 'E-commerce Platform', icon: '🛒' },
 ];
 
-// Sample workflow logs
 const generateWorkflowLogs = (count = 10) => {
   const logs = [];
   const statuses = ['success', 'warning', 'error'];
@@ -61,7 +61,8 @@ const workflowSchema = z.object({
   n8nUrl: z.string().url("Must be a valid URL"),
   apiKey: z.string().min(1, "API key is required"),
   workflowId: z.string().min(1, "Workflow ID is required"),
-  isActive: z.boolean().default(true)
+  isActive: z.boolean().default(true),
+  isDataSource: z.boolean().default(false)
 });
 
 type WorkflowFormValues = z.infer<typeof workflowSchema>;
@@ -74,6 +75,7 @@ interface N8nWorkflow {
   apiKey: string;
   workflowId: string;
   isActive: boolean;
+  isDataSource?: boolean;
   lastRun?: string;
   status?: 'success' | 'warning' | 'error';
 }
@@ -92,6 +94,7 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
       apiKey: 'n8n_api_demo_key',
       workflowId: '123',
       isActive: true,
+      isDataSource: true,
       lastRun: new Date(Date.now() - 3600000).toISOString(),
       status: 'success'
     },
@@ -103,6 +106,7 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
       apiKey: 'n8n_api_demo_key',
       workflowId: '456',
       isActive: true,
+      isDataSource: false,
       lastRun: new Date(Date.now() - 7200000).toISOString(),
       status: 'warning'
     }
@@ -123,7 +127,8 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
       n8nUrl: n8nBaseUrl,
       apiKey: '',
       workflowId: '',
-      isActive: true
+      isActive: true,
+      isDataSource: false
     }
   });
 
@@ -135,14 +140,21 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
       n8nUrl: n8nBaseUrl,
       apiKey: '',
       workflowId: '',
-      isActive: true
+      isActive: true,
+      isDataSource: false
     });
   };
 
   const handleSaveWorkflow = (data: WorkflowFormValues) => {
     const newWorkflow: N8nWorkflow = {
       id: `wf-${Date.now().toString().slice(-3)}`,
-      ...data
+      name: data.name,
+      channelType: data.channelType,
+      n8nUrl: data.n8nUrl,
+      apiKey: data.apiKey,
+      workflowId: data.workflowId,
+      isActive: data.isActive,
+      isDataSource: data.isDataSource
     };
     
     const updatedWorkflows = [...workflows, newWorkflow];
@@ -161,7 +173,6 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
   const handleTestConnection = async () => {
     setIsTestingConnection(true);
     try {
-      // Simulate testing connection to n8n
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       toast.success('Connection successful!', {
@@ -203,15 +214,40 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
     );
   };
 
+  const handleToggleDataSource = (workflowId: string) => {
+    const updatedWorkflows = workflows.map(wf => {
+      if (wf.id === workflowId) {
+        return { ...wf, isDataSource: !wf.isDataSource };
+      }
+      return wf;
+    });
+    
+    setWorkflows(updatedWorkflows);
+    
+    if (onWorkflowChange) {
+      onWorkflowChange(updatedWorkflows);
+    }
+    
+    const workflow = workflows.find(wf => wf.id === workflowId);
+    const newStatus = !workflow?.isDataSource;
+    
+    toast.success(
+      newStatus 
+        ? 'Channel set as data source' 
+        : 'Channel removed as data source', 
+      {
+        description: `${workflow?.name} ${newStatus ? 'will now' : 'will no longer'} be used as a data source for agents`
+      }
+    );
+  };
+
   const handleRunWorkflow = async (workflow: N8nWorkflow) => {
     setIsRunning(true);
     setSelectedWorkflow(workflow);
     
     try {
-      // Simulate running workflow
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Add a new log entry
       const newLog = {
         id: `wf-log-${Date.now()}`,
         agentType: 'campaignPerformance',
@@ -226,7 +262,6 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
       
       setLogs([newLog, ...logs]);
       
-      // Update workflow status
       const updatedWorkflows = workflows.map(wf => {
         if (wf.id === workflow.id) {
           return {
@@ -292,7 +327,7 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
             </Button>
           </CardTitle>
           <CardDescription>
-            Connect your agents to execute n8n workflows across different marketing channels
+            Connect your agents to execute n8n workflows across different marketing channels and collect data
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -344,6 +379,7 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
                     <TableHead>Name</TableHead>
                     <TableHead>Channel</TableHead>
                     <TableHead>Workflow ID</TableHead>
+                    <TableHead>Data Source</TableHead>
                     <TableHead>Last Run</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Active</TableHead>
@@ -362,6 +398,20 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
                           </div>
                         </TableCell>
                         <TableCell>{workflow.workflowId}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Switch 
+                              checked={!!workflow.isDataSource} 
+                              onCheckedChange={() => handleToggleDataSource(workflow.id)}
+                            />
+                            {workflow.isDataSource && 
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                <Database className="h-3 w-3 inline mr-1" />
+                                Data Source
+                              </span>
+                            }
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {workflow.lastRun 
                             ? new Date(workflow.lastRun).toLocaleString() 
@@ -417,7 +467,7 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                         No workflows configured yet. 
                         <Button variant="link" onClick={handleAddWorkflow} className="px-1 py-0 h-auto">
                           Add your first workflow
@@ -447,7 +497,6 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
         </CardContent>
       </Card>
       
-      {/* Add Workflow Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -551,28 +600,53 @@ export function N8nWorkflowConfig({ onWorkflowChange }: N8nWorkflowConfigProps) 
                 />
               </div>
               
-              <FormField
-                control={form.control}
-                name="isActive"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Activate Workflow
-                      </FormLabel>
-                      <FormDescription>
-                        Enable this workflow for immediate use
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Activate Workflow
+                        </FormLabel>
+                        <FormDescription>
+                          Enable this workflow for immediate use
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="isDataSource"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Use as Data Source
+                        </FormLabel>
+                        <FormDescription>
+                          Allow agents to collect data from this channel
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setIsAddDialogOpen(false)}>

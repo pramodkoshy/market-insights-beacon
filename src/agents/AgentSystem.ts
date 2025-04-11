@@ -40,6 +40,7 @@ interface N8nWorkflow {
   apiKey: string;
   workflowId: string;
   isActive: boolean;
+  isDataSource?: boolean;
   lastRun?: string;
   status?: 'success' | 'warning' | 'error';
 }
@@ -61,6 +62,7 @@ export class AgentSystem {
   private updateCallback: ((results: Record<string, any>) => void) | null = null;
   private workflows: N8nWorkflow[] = [];
   private workflowLogs: any[] = [];
+  private channelDataSources: Map<string, any> = new Map();
 
   constructor() {
     this.taskQueue = [];
@@ -315,12 +317,64 @@ export class AgentSystem {
         triggerWorkflows: true
       };
       
+      // First fetch data from any data source channels if they exist
+      await this.fetchDataFromChannels(taskType, enhancedParams);
+      
       const result = await graph.invoke(enhancedParams);
       console.log(`Task ${taskType} completed with result:`, result);
       return result;
     } catch (error) {
       console.error(`Error running task ${taskType}:`, error);
       throw error;
+    }
+  }
+
+  private async fetchDataFromChannels(agentType: string, params: any): Promise<void> {
+    // Get all workflows marked as data sources that are active
+    const dataSources = this.workflows.filter(wf => wf.isDataSource && wf.isActive);
+    
+    if (dataSources.length === 0) {
+      console.log("No data source channels configured, skipping data fetch");
+      return;
+    }
+    
+    console.log(`Fetching data from ${dataSources.length} channel sources for ${agentType} agent`);
+    
+    try {
+      // Execute all data source workflows in parallel
+      const results = await Promise.all(
+        dataSources.map(workflow => this.executeN8nWorkflow(workflow, {
+          fetchData: true,
+          agentType: agentType,
+          timestamp: new Date().toISOString(),
+          params: params
+        }))
+      );
+      
+      // Store the channel data in our map (keyed by channel type)
+      results.forEach((result, index) => {
+        if (result.success && result.data) {
+          const workflow = dataSources[index];
+          this.channelDataSources.set(workflow.channelType, {
+            lastFetched: new Date().toISOString(),
+            data: result.data,
+            source: workflow.name
+          });
+          
+          console.log(`Fetched data from ${workflow.name} (${workflow.channelType}) channel`);
+        }
+      });
+      
+      // Add the channel data to the agent parameters
+      if (params) {
+        params.channelData = Object.fromEntries(this.channelDataSources);
+        console.log(`Added channel data to agent parameters:`, 
+          Array.from(this.channelDataSources.keys()));
+      }
+      
+    } catch (error) {
+      console.error("Error fetching data from channels:", error);
+      // We don't throw here to allow the agent to still run even if data fetching fails
     }
   }
 
@@ -381,6 +435,16 @@ export class AgentSystem {
   setWorkflows(workflows: N8nWorkflow[]): void {
     this.workflows = workflows;
     console.log(`Updated workflows configuration with ${workflows.length} workflows`);
+    
+    // Clear channel data sources when workflows change
+    this.channelDataSources.clear();
+    
+    // Log which workflows are set as data sources
+    const dataSources = workflows.filter(wf => wf.isDataSource);
+    if (dataSources.length > 0) {
+      console.log(`${dataSources.length} workflows configured as data sources:`, 
+        dataSources.map(ds => `${ds.name} (${ds.channelType})`));
+    }
   }
   
   getWorkflows(): N8nWorkflow[] {
@@ -391,11 +455,20 @@ export class AgentSystem {
     return this.workflowLogs;
   }
   
+  getChannelData(channelType: string): any {
+    return this.channelDataSources.get(channelType);
+  }
+  
+  getAllChannelData(): Record<string, any> {
+    return Object.fromEntries(this.channelDataSources);
+  }
+  
   async executeN8nWorkflow(workflow: N8nWorkflow, data: any): Promise<WorkflowExecutionResult> {
     console.log(`Executing n8n workflow: ${workflow.name} (ID: ${workflow.id})`);
     console.log(`Workflow data:`, data);
     
     const startTime = Date.now();
+    const isFetchingData = data.fetchData === true;
     
     try {
       // In a real implementation, this would make an HTTP request to the n8n API
@@ -412,13 +485,27 @@ export class AgentSystem {
         throw new Error("Workflow execution failed");
       }
       
+      // Generate dummy data if this is a data fetch operation
+      let responseData = null;
+      if (isFetchingData) {
+        responseData = this.generateChannelData(workflow.channelType);
+      } else {
+        responseData = {
+          executionId: `exec-${Date.now()}`,
+          workflowName: workflow.name,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
       // Create a log entry for this execution
       const logEntry = {
         id: `wf-exec-${Date.now()}`,
         agentType: data.agentType,
         timestamp: new Date().toISOString(),
         status: 'success' as 'success' | 'warning' | 'error',
-        message: `Executed workflow: ${workflow.name} for ${data.agentType}`,
+        message: isFetchingData 
+          ? `Fetched data from channel: ${workflow.name}` 
+          : `Executed workflow: ${workflow.name} for ${data.agentType}`,
         duration: executionTime,
         workflowId: workflow.id,
         workflowName: workflow.name,
@@ -447,11 +534,7 @@ export class AgentSystem {
       
       return {
         success: true,
-        data: {
-          executionId: `exec-${Date.now()}`,
-          workflowName: workflow.name,
-          timestamp: new Date().toISOString()
-        },
+        data: responseData,
         executionTime: executionTimeTotal,
         workflowId: workflow.id
       };
@@ -464,7 +547,9 @@ export class AgentSystem {
         agentType: data.agentType,
         timestamp: new Date().toISOString(),
         status: 'error' as 'success' | 'warning' | 'error',
-        message: `Failed to execute workflow: ${workflow.name} - ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: isFetchingData
+          ? `Failed to fetch data from channel: ${workflow.name} - ${error instanceof Error ? error.message : 'Unknown error'}`
+          : `Failed to execute workflow: ${workflow.name} - ${error instanceof Error ? error.message : 'Unknown error'}`,
         duration: Date.now() - startTime,
         workflowId: workflow.id,
         workflowName: workflow.name,
@@ -497,6 +582,108 @@ export class AgentSystem {
         executionTime: executionTimeTotal,
         workflowId: workflow.id
       };
+    }
+  }
+
+  // Generate fake data based on channel type
+  private generateChannelData(channelType: string): any {
+    switch (channelType) {
+      case 'email':
+        return {
+          deliveryRate: Math.round(Math.random() * 30 + 70),
+          openRate: Math.round(Math.random() * 40 + 20),
+          clickRate: Math.round(Math.random() * 15 + 5),
+          campaigns: Math.round(Math.random() * 20 + 5),
+          subscribers: Math.round(Math.random() * 10000 + 5000),
+          unsubscribeRate: Math.round(Math.random() * 3 * 10) / 10,
+          recentSubjects: [
+            "Special Offer Just For You",
+            "Your Weekly Newsletter",
+            "Product Update Announcement",
+            "Exclusive Member Discount"
+          ]
+        };
+      case 'social':
+        return {
+          engagement: Math.round(Math.random() * 25 + 5),
+          followers: Math.round(Math.random() * 50000 + 10000),
+          growth: Math.round(Math.random() * 15 + 2),
+          postFrequency: Math.round(Math.random() * 5 + 1),
+          topPlatforms: ["Instagram", "Twitter", "Facebook", "LinkedIn"],
+          sentimentScore: Math.round(Math.random() * 50 + 50),
+          recentHashtags: [
+            "#MarketingTips",
+            "#IndustryNews",
+            "#ProductLaunch",
+            "#CustomerStories"
+          ]
+        };
+      case 'ads':
+        return {
+          cpc: Math.round(Math.random() * 300 + 50) / 100,
+          ctr: Math.round(Math.random() * 500 + 100) / 100,
+          conversion: Math.round(Math.random() * 800 + 100) / 100,
+          spend: Math.round(Math.random() * 10000 + 1000),
+          impressions: Math.round(Math.random() * 100000 + 50000),
+          channels: ["Search", "Display", "Social", "Video"],
+          topKeywords: [
+            "industry solutions",
+            "best services",
+            "affordable products",
+            "expert consultation"
+          ]
+        };
+      case 'crm':
+        return {
+          leads: Math.round(Math.random() * 1000 + 200),
+          opportunities: Math.round(Math.random() * 300 + 50),
+          conversionRate: Math.round(Math.random() * 30 + 10),
+          avgDealSize: Math.round(Math.random() * 5000 + 1000),
+          salesCycle: Math.round(Math.random() * 30 + 15),
+          customerRetention: Math.round(Math.random() * 30 + 60),
+          segments: [
+            "Enterprise",
+            "Mid-Market",
+            "Small Business",
+            "Startup"
+          ]
+        };
+      case 'analytics':
+        return {
+          visitors: Math.round(Math.random() * 50000 + 10000),
+          pageviews: Math.round(Math.random() * 150000 + 30000),
+          bounceRate: Math.round(Math.random() * 30 + 30),
+          avgSessionTime: Math.round(Math.random() * 180 + 60),
+          conversionPoints: ["Signup", "Download", "Purchase", "Contact"],
+          topSources: ["Organic", "Direct", "Referral", "Social"],
+          deviceUsage: {
+            mobile: Math.round(Math.random() * 50 + 30),
+            desktop: Math.round(Math.random() * 40 + 20),
+            tablet: Math.round(Math.random() * 20 + 5)
+          }
+        };
+      case 'ecommerce':
+        return {
+          sales: Math.round(Math.random() * 50000 + 10000),
+          aov: Math.round(Math.random() * 150 + 50),
+          cartAbandonment: Math.round(Math.random() * 30 + 60),
+          repeatPurchase: Math.round(Math.random() * 40 + 20),
+          topProducts: [
+            "Premium Subscription",
+            "Starter Package",
+            "Professional Services",
+            "Enterprise Solution"
+          ],
+          customerLocations: ["North America", "Europe", "Asia", "Australia"],
+          purchaseFrequency: Math.round(Math.random() * 90 + 30)
+        };
+      default:
+        return {
+          dataPoints: Math.round(Math.random() * 1000 + 500),
+          metrics: ["Engagement", "Conversion", "Retention", "Growth"],
+          timestamp: new Date().toISOString(),
+          channelType
+        };
     }
   }
 }
