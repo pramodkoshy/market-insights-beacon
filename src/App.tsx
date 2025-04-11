@@ -10,6 +10,9 @@ import { EntitiesConfigPage } from "./components/EntitiesConfigPage";
 import { ReportingConfigPage } from "./components/ReportingConfigPage";
 import { SystemConfigPage } from "./components/SystemConfigPage";
 import { ReportPage } from "./pages/ReportPage";
+import { CampaignsPage } from "./pages/CampaignsPage";
+import { CustomersPage } from "./pages/CustomersPage";
+import { ROIPage } from "./pages/ROIPage";
 
 const App = () => (
   <TooltipProvider>
