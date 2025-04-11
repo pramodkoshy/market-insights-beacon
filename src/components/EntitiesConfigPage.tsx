@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { TopNavigation } from './TopNavigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,18 +8,369 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Building2, Users, Database, Plus, Tag, PlusCircle, FileSpreadsheet } from 'lucide-react';
+import { 
+  Building2, 
+  Users, 
+  Database, 
+  Plus, 
+  Tag, 
+  PlusCircle, 
+  FileSpreadsheet, 
+  Edit, 
+  Trash2, 
+  Save, 
+  X,
+  ArrowLeft,
+  ArrowRight 
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from '@/components/ui/pagination';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+// Sample entity types and their properties
+const entityTypes = {
+  campaigns: {
+    label: 'Campaigns',
+    icon: <Tag className="h-5 w-5 mr-2" />,
+    properties: [
+      { name: 'name', type: 'string', required: true },
+      { name: 'campaign_id', type: 'string', required: true },
+      { name: 'budget', type: 'number' },
+      { name: 'start_date', type: 'date' },
+      { name: 'end_date', type: 'date' },
+      { name: 'status', type: 'enum', options: ['draft', 'active', 'paused', 'completed'] },
+      { name: 'channel', type: 'relation' }
+    ],
+    relationships: [
+      { name: 'channels', type: 'many-to-many' },
+      { name: 'customers', type: 'many-to-many' },
+      { name: 'products', type: 'many-to-many' }
+    ]
+  },
+  customers: {
+    label: 'Customers',
+    icon: <Users className="h-5 w-5 mr-2" />,
+    properties: [
+      { name: 'customer_id', type: 'string', required: true },
+      { name: 'name', type: 'string', required: true },
+      { name: 'email', type: 'string' },
+      { name: 'segment', type: 'enum', options: ['high-value', 'regular', 'occasional', 'new'] },
+      { name: 'lifetime_value', type: 'number' }
+    ],
+    relationships: [
+      { name: 'campaigns', type: 'many-to-many' },
+      { name: 'purchases', type: 'one-to-many' }
+    ]
+  },
+  channels: {
+    label: 'Channels',
+    icon: <Building2 className="h-5 w-5 mr-2" />,
+    properties: [
+      { name: 'channel_id', type: 'string', required: true },
+      { name: 'name', type: 'string', required: true },
+      { name: 'type', type: 'enum', options: ['social', 'email', 'search', 'display', 'direct'] },
+      { name: 'cost_model', type: 'enum', options: ['cpc', 'cpm', 'cpa', 'fixed'] }
+    ],
+    relationships: [
+      { name: 'campaigns', type: 'many-to-many' }
+    ]
+  },
+  products: {
+    label: 'Products',
+    icon: <Database className="h-5 w-5 mr-2" />,
+    properties: [
+      { name: 'product_id', type: 'string', required: true },
+      { name: 'name', type: 'string', required: true },
+      { name: 'category', type: 'string' },
+      { name: 'price', type: 'number' },
+      { name: 'inventory', type: 'number' }
+    ],
+    relationships: [
+      { name: 'campaigns', type: 'many-to-many' },
+      { name: 'customers', type: 'many-to-many' }
+    ]
+  }
+};
+
+// Sample entity data
+const generateSampleEntities = (type, count = 20) => {
+  const entities = [];
+  const typeConfig = entityTypes[type];
+  
+  for (let i = 1; i <= count; i++) {
+    const entity = {
+      id: `${type.slice(0, 3)}-${i.toString().padStart(4, '0')}`,
+      createdAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
+      updatedAt: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+    };
+    
+    typeConfig.properties.forEach(prop => {
+      if (prop.name === 'name') {
+        entity[prop.name] = `${typeConfig.label.slice(0, -1)} ${i}`;
+      } else if (prop.type === 'string' && prop.name.includes('id')) {
+        entity[prop.name] = `${prop.name.split('_')[0]}-${i.toString().padStart(4, '0')}`;
+      } else if (prop.type === 'number') {
+        entity[prop.name] = Math.floor(Math.random() * 1000);
+      } else if (prop.type === 'date') {
+        const date = new Date();
+        if (prop.name === 'start_date') {
+          date.setDate(date.getDate() - Math.floor(Math.random() * 30));
+        } else if (prop.name === 'end_date') {
+          date.setDate(date.getDate() + Math.floor(Math.random() * 90) + 30);
+        }
+        entity[prop.name] = date.toISOString().split('T')[0];
+      } else if (prop.type === 'enum' && prop.options) {
+        const randomIndex = Math.floor(Math.random() * prop.options.length);
+        entity[prop.name] = prop.options[randomIndex];
+      } else if (prop.type === 'relation') {
+        entity[prop.name] = `rel-${Math.floor(Math.random() * 100)}`;
+      }
+    });
+    
+    entities.push(entity);
+  }
+  
+  return entities;
+};
+
+// Sample agent run logs
+const generateSampleLogs = (count = 15) => {
+  const logs = [];
+  const agentTypes = ['entityValidation', 'dataSync', 'relationshipCheck'];
+  const statuses = ['success', 'warning', 'error'];
+  
+  for (let i = 1; i <= count; i++) {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() - i * 15);
+    
+    logs.push({
+      id: `log-${i.toString().padStart(4, '0')}`,
+      agentType: agentTypes[Math.floor(Math.random() * agentTypes.length)],
+      entityType: Object.keys(entityTypes)[Math.floor(Math.random() * Object.keys(entityTypes).length)],
+      timestamp: date.toISOString(),
+      status: statuses[Math.floor(Math.random() * statuses.length)],
+      message: `Processed entity batch ${Math.floor(Math.random() * 100)}`,
+      duration: Math.floor(Math.random() * 5000) + 500
+    });
+  }
+  
+  return logs;
+};
+
+// Form schema for entity validation
+const createEntitySchema = (entityType) => {
+  const typeConfig = entityTypes[entityType];
+  const schema = {};
+  
+  typeConfig.properties.forEach(prop => {
+    if (prop.type === 'string') {
+      if (prop.required) {
+        schema[prop.name] = z.string().min(1, { message: `${prop.name} is required` });
+      } else {
+        schema[prop.name] = z.string().optional();
+      }
+    } else if (prop.type === 'number') {
+      if (prop.required) {
+        schema[prop.name] = z.number({ invalid_type_error: `${prop.name} must be a number` });
+      } else {
+        schema[prop.name] = z.number({ invalid_type_error: `${prop.name} must be a number` }).optional();
+      }
+    } else if (prop.type === 'date') {
+      if (prop.required) {
+        schema[prop.name] = z.string().min(1, { message: `${prop.name} is required` });
+      } else {
+        schema[prop.name] = z.string().optional();
+      }
+    } else if (prop.type === 'enum') {
+      if (prop.required) {
+        schema[prop.name] = z.enum(prop.options);
+      } else {
+        schema[prop.name] = z.enum(prop.options).optional();
+      }
+    } else if (prop.type === 'relation') {
+      if (prop.required) {
+        schema[prop.name] = z.string().min(1, { message: `${prop.name} is required` });
+      } else {
+        schema[prop.name] = z.string().optional();
+      }
+    }
+  });
+  
+  return z.object(schema);
+};
 
 export function EntitiesConfigPage() {
-  const handleSaveEntity = () => {
-    toast.success("Entity saved successfully!");
+  const [activeTab, setActiveTab] = useState('campaigns');
+  const [entities, setEntities] = useState({});
+  const [logs, setLogs] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [currentEntity, setCurrentEntity] = useState(null);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil((entities[activeTab]?.length || 0) / itemsPerPage);
+  
+  // Initialize entity data
+  useEffect(() => {
+    const initialEntities = {};
+    Object.keys(entityTypes).forEach(type => {
+      initialEntities[type] = generateSampleEntities(type);
+    });
+    setEntities(initialEntities);
+    setLogs(generateSampleLogs());
+  }, []);
+  
+  // Form setup for adding/editing entities
+  const entitySchema = createEntitySchema(activeTab);
+  const form = useForm({
+    resolver: zodResolver(entitySchema),
+    defaultValues: {}
+  });
+  
+  // Reset form when changing tabs or when the dialog opens/closes
+  useEffect(() => {
+    if (isAddDialogOpen) {
+      const defaultValues = {};
+      entityTypes[activeTab].properties.forEach(prop => {
+        defaultValues[prop.name] = '';
+      });
+      form.reset(defaultValues);
+    } else if (isEditDialogOpen && currentEntity) {
+      form.reset(currentEntity);
+    }
+  }, [isAddDialogOpen, isEditDialogOpen, currentEntity, activeTab, form]);
+  
+  const handleTabChange = (value) => {
+    setActiveTab(value);
+    setCurrentPage(1);
+  };
+  
+  const handleAddEntity = () => {
+    setIsAddDialogOpen(true);
+  };
+  
+  const handleEditEntity = (entity) => {
+    setCurrentEntity(entity);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleDeleteEntity = (entity) => {
+    setCurrentEntity(entity);
+    setIsConfirmDeleteOpen(true);
+  };
+  
+  const confirmDelete = () => {
+    if (currentEntity) {
+      const updatedEntities = {
+        ...entities,
+        [activeTab]: entities[activeTab].filter(e => e.id !== currentEntity.id)
+      };
+      setEntities(updatedEntities);
+      toast.success(`Entity deleted successfully!`);
+      setIsConfirmDeleteOpen(false);
+      
+      // Add a log entry for this operation
+      const newLog = {
+        id: `log-${logs.length + 1}`,
+        agentType: 'entityValidation',
+        entityType: activeTab,
+        timestamp: new Date().toISOString(),
+        status: 'success',
+        message: `Deleted entity ${currentEntity.name || currentEntity.id}`,
+        duration: Math.floor(Math.random() * 500) + 100
+      };
+      setLogs([newLog, ...logs]);
+    }
+  };
+  
+  const onSubmit = (data) => {
+    if (isAddDialogOpen) {
+      const newEntity = {
+        ...data,
+        id: `${activeTab.slice(0, 3)}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      const updatedEntities = {
+        ...entities,
+        [activeTab]: [...entities[activeTab], newEntity]
+      };
+      
+      setEntities(updatedEntities);
+      toast.success("Entity added successfully!");
+      setIsAddDialogOpen(false);
+      
+      // Add a log entry for this operation
+      const newLog = {
+        id: `log-${logs.length + 1}`,
+        agentType: 'entityValidation',
+        entityType: activeTab,
+        timestamp: new Date().toISOString(),
+        status: 'success',
+        message: `Created new entity ${newEntity.name || newEntity.id}`,
+        duration: Math.floor(Math.random() * 500) + 100
+      };
+      setLogs([newLog, ...logs]);
+      
+    } else if (isEditDialogOpen && currentEntity) {
+      const updatedEntity = {
+        ...currentEntity,
+        ...data,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const updatedEntities = {
+        ...entities,
+        [activeTab]: entities[activeTab].map(e => 
+          e.id === currentEntity.id ? updatedEntity : e
+        )
+      };
+      
+      setEntities(updatedEntities);
+      toast.success("Entity updated successfully!");
+      setIsEditDialogOpen(false);
+      
+      // Add a log entry for this operation
+      const newLog = {
+        id: `log-${logs.length + 1}`,
+        agentType: 'entityValidation',
+        entityType: activeTab,
+        timestamp: new Date().toISOString(),
+        status: 'success',
+        message: `Updated entity ${updatedEntity.name || updatedEntity.id}`,
+        duration: Math.floor(Math.random() * 500) + 100
+      };
+      setLogs([newLog, ...logs]);
+    }
   };
   
   const handleImportEntities = () => {
     toast.info("Import functionality would connect to your data sources in a production environment");
   };
-
+  
+  // Get paginated entities
+  const getPaginatedEntities = () => {
+    if (!entities[activeTab]) return [];
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return entities[activeTab].slice(start, end);
+  };
+  
   return (
     <div className="flex flex-col min-h-screen">
       <TopNavigation />
@@ -32,176 +383,390 @@ export function EntitiesConfigPage() {
               <FileSpreadsheet className="mr-2 h-4 w-4" />
               Import
             </Button>
-            <Button>
+            <Button onClick={handleAddEntity}>
               <Plus className="mr-2 h-4 w-4" />
               New Entity
             </Button>
           </div>
         </div>
         
-        <Tabs defaultValue="campaigns" className="space-y-4">
+        <Tabs defaultValue="campaigns" value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="customers">Customers</TabsTrigger>
-            <TabsTrigger value="channels">Channels</TabsTrigger>
-            <TabsTrigger value="products">Products</TabsTrigger>
+            {Object.keys(entityTypes).map(type => (
+              <TabsTrigger key={type} value={type}>
+                {entityTypes[type].label}
+              </TabsTrigger>
+            ))}
           </TabsList>
           
-          <TabsContent value="campaigns" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Tag className="h-5 w-5 mr-2" />
-                  Campaign Entity Configuration
-                </CardTitle>
-                <CardDescription>Configure campaign entity properties and relationships</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="campaign-name-field">Name Field</Label>
-                    <Input id="campaign-name-field" defaultValue="name" />
+          {Object.keys(entityTypes).map(type => (
+            <TabsContent key={type} value={type} className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    {entityTypes[type].icon}
+                    {entityTypes[type].label} Entity List
+                  </CardTitle>
+                  <CardDescription>
+                    Manage your {type} entities - add, edit, or remove items as needed
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Name</TableHead>
+                          {entityTypes[type].properties
+                            .filter(prop => !['name', 'campaign_id', 'customer_id', 'channel_id', 'product_id'].includes(prop.name))
+                            .slice(0, 3)
+                            .map(prop => (
+                              <TableHead key={prop.name}>{prop.name.replace('_', ' ')}</TableHead>
+                            ))
+                          }
+                          <TableHead>Created</TableHead>
+                          <TableHead>Updated</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getPaginatedEntities().map((entity) => (
+                          <TableRow key={entity.id}>
+                            <TableCell className="font-medium">{entity.id}</TableCell>
+                            <TableCell>{entity.name}</TableCell>
+                            {entityTypes[type].properties
+                              .filter(prop => !['name', 'campaign_id', 'customer_id', 'channel_id', 'product_id'].includes(prop.name))
+                              .slice(0, 3)
+                              .map(prop => (
+                                <TableCell key={prop.name}>
+                                  {entity[prop.name] ? (
+                                    prop.type === 'date' 
+                                      ? new Date(entity[prop.name]).toLocaleDateString() 
+                                      : entity[prop.name]
+                                  ) : '-'}
+                                </TableCell>
+                              ))
+                            }
+                            <TableCell>
+                              {new Date(entity.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(entity.updatedAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => handleEditEntity(entity)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteEntity(entity)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="campaign-id-field">ID Field</Label>
-                    <Input id="campaign-id-field" defaultValue="campaign_id" />
+                  
+                  {totalPages > 1 && (
+                    <Pagination className="mt-4">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter(page => 
+                            page === 1 || 
+                            page === totalPages || 
+                            (page >= currentPage - 1 && page <= currentPage + 1)
+                          )
+                          .map((page, i, pages) => {
+                            // Add ellipsis
+                            if (i > 0 && pages[i] - pages[i-1] > 1) {
+                              return (
+                                <React.Fragment key={`ellipsis-${page}`}>
+                                  <PaginationItem>
+                                    <div className="flex h-9 w-9 items-center justify-center">...</div>
+                                  </PaginationItem>
+                                  <PaginationItem>
+                                    <PaginationLink 
+                                      isActive={page === currentPage}
+                                      onClick={() => setCurrentPage(page)}
+                                    >
+                                      {page}
+                                    </PaginationLink>
+                                  </PaginationItem>
+                                </React.Fragment>
+                              );
+                            }
+                            
+                            return (
+                              <PaginationItem key={page}>
+                                <PaginationLink 
+                                  isActive={page === currentPage}
+                                  onClick={() => setCurrentPage(page)}
+                                >
+                                  {page}
+                                </PaginationLink>
+                              </PaginationItem>
+                            );
+                          })
+                        }
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Agent Run Logs</CardTitle>
+                  <CardDescription>
+                    View logs of agent operations related to {type} entities
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Timestamp</TableHead>
+                          <TableHead>Agent Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Message</TableHead>
+                          <TableHead>Duration</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logs
+                          .filter(log => log.entityType === type)
+                          .slice(0, 5)
+                          .map(log => (
+                            <TableRow key={log.id}>
+                              <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
+                              <TableCell>{log.agentType}</TableCell>
+                              <TableCell>
+                                <span 
+                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                    log.status === 'success' 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : log.status === 'warning'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : 'bg-red-100 text-red-800'
+                                  }`}
+                                >
+                                  {log.status}
+                                </span>
+                              </TableCell>
+                              <TableCell>{log.message}</TableCell>
+                              <TableCell>{log.duration}ms</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="campaign-tracking">Tracking Properties</Label>
-                  <div className="border rounded-md p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span>budget</span>
-                      <span className="text-sm text-muted-foreground">number</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>start_date</span>
-                      <span className="text-sm text-muted-foreground">date</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>end_date</span>
-                      <span className="text-sm text-muted-foreground">date</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>status</span>
-                      <span className="text-sm text-muted-foreground">enum</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>channel</span>
-                      <span className="text-sm text-muted-foreground">relation</span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="w-full mt-2">
-                      <PlusCircle className="h-3.5 w-3.5 mr-1" />
-                      Add Property
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Relationships</Label>
-                  <div className="border rounded-md p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span>channels</span>
-                      <span className="text-sm text-muted-foreground">many-to-many</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>customers</span>
-                      <span className="text-sm text-muted-foreground">many-to-many</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>products</span>
-                      <span className="text-sm text-muted-foreground">many-to-many</span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="w-full mt-2">
-                      <PlusCircle className="h-3.5 w-3.5 mr-1" />
-                      Add Relationship
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch id="auto-track-campaigns" defaultChecked />
-                  <Label htmlFor="auto-track-campaigns">Automatically track campaign performance</Label>
-                </div>
-                
-                <Button onClick={handleSaveEntity}>Save Campaign Entity Configuration</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="customers" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Customer Entity Configuration
-                </CardTitle>
-                <CardDescription>Configure customer entity properties and relationships</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
-                  <Label>Entity Properties</Label>
-                  <div className="border rounded-md p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span>customer_id</span>
-                      <span className="text-sm text-muted-foreground">unique identifier</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>name</span>
-                      <span className="text-sm text-muted-foreground">string</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>email</span>
-                      <span className="text-sm text-muted-foreground">string</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>segment</span>
-                      <span className="text-sm text-muted-foreground">enum</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>lifetime_value</span>
-                      <span className="text-sm text-muted-foreground">number</span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="w-full mt-2">
-                      <PlusCircle className="h-3.5 w-3.5 mr-1" />
-                      Add Property
-                    </Button>
-                  </div>
-                </div>
-                
-                <Button onClick={handleSaveEntity}>Save Customer Entity Configuration</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="channels" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Channel Entity Configuration</CardTitle>
-                <CardDescription>Configure channel entity properties and relationships</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-4">Define properties for marketing channels such as social media, email, search, etc.</p>
-                <Button onClick={handleSaveEntity}>Save Channel Entity Configuration</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="products" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Product Entity Configuration</CardTitle>
-                <CardDescription>Configure product entity properties and relationships</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-4">Define properties for products and their relationship to campaigns and customers.</p>
-                <Button onClick={handleSaveEntity}>Save Product Entity Configuration</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ))}
         </Tabs>
       </div>
+      
+      {/* Add Entity Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New {entityTypes[activeTab]?.label.slice(0, -1)}</DialogTitle>
+            <DialogDescription>
+              Create a new entity with the form below. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {entityTypes[activeTab]?.properties.map(prop => (
+                  <FormField
+                    key={prop.name}
+                    control={form.control}
+                    name={prop.name}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {prop.name.replace('_', ' ')}
+                          {prop.required && <span className="text-red-500 ml-1">*</span>}
+                        </FormLabel>
+                        <FormControl>
+                          {prop.type === 'enum' ? (
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={`Select ${prop.name}`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {prop.options?.map(option => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : prop.type === 'date' ? (
+                            <Input 
+                              type="date" 
+                              {...field} 
+                            />
+                          ) : prop.type === 'number' ? (
+                            <Input 
+                              type="number" 
+                              {...field} 
+                              onChange={e => field.onChange(e.target.valueAsNumber)}
+                            />
+                          ) : (
+                            <Input {...field} />
+                          )}
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Entity
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Entity Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit {entityTypes[activeTab]?.label.slice(0, -1)}</DialogTitle>
+            <DialogDescription>
+              Update the entity information. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {entityTypes[activeTab]?.properties.map(prop => (
+                  <FormField
+                    key={prop.name}
+                    control={form.control}
+                    name={prop.name}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {prop.name.replace('_', ' ')}
+                          {prop.required && <span className="text-red-500 ml-1">*</span>}
+                        </FormLabel>
+                        <FormControl>
+                          {prop.type === 'enum' ? (
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                              value={field.value}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={`Select ${prop.name}`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {prop.options?.map(option => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : prop.type === 'date' ? (
+                            <Input 
+                              type="date" 
+                              {...field} 
+                            />
+                          ) : prop.type === 'number' ? (
+                            <Input 
+                              type="number" 
+                              {...field} 
+                              onChange={e => field.onChange(Number(e.target.value))}
+                              value={field.value || ''}
+                            />
+                          ) : (
+                            <Input {...field} />
+                          )}
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  <Save className="mr-2 h-4 w-4" />
+                  Update Entity
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Confirm Delete Dialog */}
+      <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this entity? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {currentEntity && (
+            <div className="py-4">
+              <p className="mb-2"><strong>Entity:</strong> {currentEntity.name || currentEntity.id}</p>
+              <p><strong>ID:</strong> {currentEntity.id}</p>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsConfirmDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
